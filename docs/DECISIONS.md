@@ -71,3 +71,30 @@ Enum classes will not be used unless a clear future need arises.
 
 Reason:
 The current project size does not justify the additional complexity.
+
+---
+
+## Decision 009
+
+Data paths will not be stored in constants.py or YAML configuration files.
+
+Reason:
+File-system paths are computer-specific and are not scientific parameters.
+
+---
+
+## Decision 010
+
+The official GitHub repository structure is fixed as the initial NeuroCogEEG project structure.
+
+Reason:
+A stable repository layout reduces confusion and keeps development consistent.
+
+---
+
+## Decision 011
+
+YAML configuration files will live only in the repository-level `configs/` directory.
+
+Reason:
+Workspace folders should contain raw data, behavior files, and outputs only.

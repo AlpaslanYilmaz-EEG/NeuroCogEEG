@@ -1,1 +1,1 @@
-
+"""Flanker analysis pipeline."""

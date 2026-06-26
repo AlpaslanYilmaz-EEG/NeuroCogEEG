@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Raw EEG data and generated outputs
+outputs/
+data/
+*.edf
+*.bdf
+*.fif
+*.set
+*.csv
+*.xlsx
+
+# OS
+.DS_Store
+Thumbs.db

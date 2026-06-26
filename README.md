@@ -1,4 +1,7 @@
 # NeuroCogEEG
-EEG analysis pipelines for some cognitive tests.
-EEG recordings must be obtained via Emotiv Epoc x.
-Cognitive tests including RSG, GNG, Flanker, TMT
+
+A transparent, reproducible and modular EEG analysis framework for executive function research using low-cost EEG systems.
+
+## Status
+
+Early development.
