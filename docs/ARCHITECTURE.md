@@ -101,3 +101,4 @@ Each module performs one specific task and can be maintained separately.
 The pipelines (Flanker, Go/No-Go, Ready-Set-Go, TMT) only orchestrate the workflow by calling reusable modules.
 
 No analysis logic should be duplicated between pipelines.
+
