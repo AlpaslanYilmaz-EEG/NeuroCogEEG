@@ -9,15 +9,25 @@ venv/
 .vscode/
 .idea/
 
-# Raw EEG data and generated outputs
-outputs/
-data/
+# Raw EEG data
 *.edf
 *.bdf
 *.fif
 *.set
-*.csv
-*.xlsx
+
+# Generated tabular outputs
+outputs/**/*.csv
+outputs/**/*.xlsx
+
+# Logs and reports generated during analysis
+outputs/**/*.log
+outputs/**/*.html
+outputs/**/*.pdf
+
+# Keep placeholder files
+!data/**/.gitkeep
+!outputs/**/.gitkeep
+!tests/.gitkeep
 
 # OS
 .DS_Store

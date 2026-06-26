@@ -1,1 +1,1 @@
-"""Dataset and workspace management utilities."""
+"""Dataset and data-path management utilities."""

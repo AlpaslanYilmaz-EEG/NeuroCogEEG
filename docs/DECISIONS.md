@@ -76,7 +76,7 @@ The current project size does not justify the additional complexity.
 
 ## Decision 009
 
-Data paths will not be stored in constants.py or YAML configuration files.
+Absolute data paths will not be stored in constants.py or YAML configuration files.
 
 Reason:
 File-system paths are computer-specific and are not scientific parameters.
@@ -97,4 +97,22 @@ A stable repository layout reduces confusion and keeps development consistent.
 YAML configuration files will live only in the repository-level `configs/` directory.
 
 Reason:
-Workspace folders should contain raw data, behavior files, and outputs only.
+There must be a single source of truth for experiment configuration files.
+
+---
+
+## Decision 012
+
+The earlier `workspace_template/` idea was removed.
+
+Reason:
+The project will instead include permanent `data/` and `outputs/` directory trees.
+
+---
+
+## Decision 013
+
+The repository will contain permanent `data/` and `outputs/` folder structures.
+
+Reason:
+Pipelines can use stable relative paths while real data and generated outputs remain ignored by Git.

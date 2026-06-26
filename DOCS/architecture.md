@@ -21,6 +21,18 @@ The primary goal is scientific reliability rather than software complexity.
 
 ---
 
+## Repository Data Policy
+
+The repository contains source code, reusable configuration files,
+documentation, tests, and the permanent project folder structure.
+
+The `data/` and `outputs/` directory trees are part of the repository structure,
+but real EEG data and generated analysis outputs must not be committed.
+
+Empty folders are preserved with `.gitkeep` files.
+
+---
+
 ## Configuration Philosophy
 
 Only immutable, universally valid information belongs in `constants.py`.
@@ -44,6 +56,28 @@ Examples include:
 - Baseline intervals
 - Connectivity parameters
 - Statistical settings
+
+---
+
+## Data and Output Layout
+
+Each experiment has a fixed relative folder structure under `data/`:
+
+- `data/flanker/raw/control/`
+- `data/flanker/raw/experimental/`
+- `data/gonogo/raw/control/`
+- `data/gonogo/raw/experimental/`
+- `data/readysetgo/raw/control/`
+- `data/readysetgo/raw/experimental/`
+- `data/tmt/raw/control/`
+- `data/tmt/raw/experimental/`
+
+Each experiment has a corresponding output structure under `outputs/`:
+
+- `csv/`
+- `figures/`
+- `reports/`
+- `logs/`
 
 ---
 
