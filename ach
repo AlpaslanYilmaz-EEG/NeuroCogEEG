@@ -1,0 +1,48 @@
+NeuroCogEEG/
+│
+├── README.md
+├── LICENSE
+├── pyproject.toml
+├── requirements.txt
+├── .gitignore
+│
+├── neurocogeeg/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── constants.py
+│   ├── exceptions.py
+│   │
+│   ├── preprocessing.py
+│   ├── epochs.py
+│   ├── behavior.py
+│   ├── erp.py
+│   ├── rp.py
+│   ├── connectivity.py
+│   ├── psd.py
+│   ├── plotting.py
+│   ├── statistics.py
+│   ├── export.py
+│   └── qc.py
+│
+├── pipelines/
+│   ├── flanker.py
+│   ├── gonogo.py
+│   ├── readysetgo.py
+│   └── tmt.py
+│
+├── configs/
+│   ├── emotiv_epocx.yaml
+│   ├── flanker.yaml
+│   ├── gonogo.yaml
+│   ├── readysetgo.yaml
+│   └── tmt.yaml
+│
+├── outputs/
+│   ├── csv/
+│   ├── figures/
+│   ├── reports/
+│   └── logs/
+│
+├── tests/
+│
+└── docs/
