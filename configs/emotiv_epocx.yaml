@@ -1,1 +1,86 @@
 # Emotiv EPOC X device configuration
+# =============================================================================
+# NeuroCogEEG - Emotiv EPOC X Configuration
+# =============================================================================
+#
+# This file contains device-level configuration for Emotiv EPOC X recordings.
+#
+# Experiment-specific settings such as event markers, ERP windows, epoch
+# durations, baselines and ROI definitions must be stored in the corresponding
+# experiment YAML files.
+#
+# This file should only describe the EEG device and general preprocessing
+# assumptions related to that device.
+# =============================================================================
+
+device:
+  name: "Emotiv EPOC X"
+  manufacturer: "Emotiv"
+  channel_count: 14
+
+channels:
+  eeg:
+    - AF3
+    - F7
+    - F3
+    - FC5
+    - T7
+    - P7
+    - O1
+    - O2
+    - P8
+    - T8
+    - FC6
+    - F4
+    - F8
+    - AF4
+
+  eog:
+    - AF3
+    - AF4
+
+montage:
+  name: "standard_1020"
+  coordinate_frame: "head"
+
+reference:
+  type: "average"
+
+marker_channels:
+  candidates:
+    - MarkerValueInt
+    - MARKER_HARDWARE
+
+line_noise:
+  frequency: 50
+
+filtering:
+  ica:
+    l_freq: 1.0
+    h_freq: 100.0
+
+  analysis:
+    l_freq: 0.05
+    h_freq: 30.0
+
+notch_filter:
+  enabled: true
+  frequency: 50.0
+
+ica:
+  enabled: true
+  method: "picard"
+  n_components: 10
+  random_state: 97
+
+  fit_params:
+    ortho: false
+    extended: true
+
+iclabel:
+  enabled: true
+  method: "iclabel"
+
+  # Components labeled as non-brain may be excluded during preprocessing.
+  # This rule will later be refined in preprocessing.py.
+  exclude_non_brain: true
