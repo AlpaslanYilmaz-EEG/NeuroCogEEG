@@ -1,1 +1,137 @@
 # Flanker experiment configuration
+# =============================================================================
+# NeuroCogEEG - Flanker Experiment Configuration
+# =============================================================================
+#
+# This file contains experiment-specific parameters for the Flanker task.
+#
+# Device-level information such as Emotiv EPOC X channel order is stored in:
+# configs/emotiv_epocx.yaml
+# =============================================================================
+
+experiment:
+  name: "flanker"
+  description: "Flanker task EEG analysis"
+
+events:
+  stimulus: 48
+  correct_response: 49
+  error_response: 50
+  missed_response: 51
+
+preprocessing:
+  filtering:
+    ica:
+      l_freq: 1.0
+      h_freq: 100.0
+
+    analysis:
+      l_freq: 0.05
+      h_freq: 30.0
+
+  notch_filter:
+    enabled: true
+    frequency: 50.0
+
+  ica:
+    enabled: true
+    method: "picard"
+    n_components: 10
+    random_state: 97
+
+    fit_params:
+      ortho: false
+      extended: true
+
+  iclabel:
+    enabled: true
+    method: "iclabel"
+    exclude_non_brain: true
+
+epochs:
+  stimulus_locked:
+    tmin: -0.2
+    tmax: 1.3
+    baseline:
+      start: -0.2
+      end: 0.0
+
+  response_locked:
+    tmin: -0.4
+    tmax: 0.6
+    baseline:
+      start: -0.4
+      end: -0.2
+
+erp_windows:
+  n2:
+    start: 0.20
+    end: 0.35
+
+  p3:
+    start: 0.30
+    end: 0.60
+
+  ern:
+    start: 0.00
+    end: 0.10
+
+roi:
+  n2:
+    - F3
+    - F4
+    - FC5
+    - FC6
+
+  p3:
+    - P7
+    - P8
+    - O1
+    - O2
+
+  ern:
+    - F3
+    - F4
+    - FC5
+    - FC6
+
+connectivity:
+  methods:
+    - coh
+    - wpli
+    - ciplv
+
+  frequency_bands:
+    theta:
+      fmin: 4.0
+      fmax: 8.0
+
+    alpha:
+      fmin: 8.0
+      fmax: 13.0
+
+    beta:
+      fmin: 13.0
+      fmax: 30.0
+
+  pairs:
+    interhemispheric:
+      - source: F3
+        target: F4
+
+    intrahemispheric_left:
+      - source: F3
+        target: P7
+
+    intrahemispheric_right:
+      - source: F4
+        target: P8
+
+quality_control:
+  reject_criteria:
+    eeg_uv: 150.0
+
+  minimum_trials:
+    stimulus_locked: 10
+    error_response: 3
+    connectivity: 10
