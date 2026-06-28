@@ -1,1 +1,150 @@
-# Trail Making Test experiment configuration
+# =============================================================================
+# NeuroCogEEG - Trail Making Test Configuration
+# =============================================================================
+#
+# Numeric event codes have no global meaning in NeuroCogEEG.
+# Their meaning is defined only within this experiment configuration.
+# =============================================================================
+
+experiment:
+  name: "tmt"
+  description: "Digital Trail Making Test EEG analysis"
+
+events:
+  task_start: 48
+  correct_click: 49
+  error_click: 50
+  task_end: 51
+
+preprocessing:
+  filtering:
+    ica:
+      l_freq: 1.0
+      h_freq: 100.0
+
+    analysis:
+      l_freq: 0.5
+      h_freq: 40.0
+
+  notch_filter:
+    enabled: true
+    frequency: 50.0
+
+  ica:
+    enabled: true
+    method: "picard"
+    n_components: 10
+    random_state: 97
+
+    fit_params:
+      ortho: false
+      extended: true
+
+  iclabel:
+    enabled: true
+    method: "iclabel"
+    exclude_non_brain: true
+
+behavior:
+  task_duration:
+    start_event: task_start
+    end_events:
+      - correct_click
+      - error_click
+      - task_end
+
+  clicks:
+    correct_event: correct_click
+    error_event: error_click
+
+  inter_click_interval:
+    events:
+      - correct_click
+      - error_click
+
+continuous_eeg:
+  segment:
+    start_event: task_start
+    end_events:
+      - correct_click
+      - error_click
+      - task_end
+
+psd:
+  total_band:
+    fmin: 1.0
+    fmax: 40.0
+
+  frequency_bands:
+    theta:
+      fmin: 4.0
+      fmax: 8.0
+
+    alpha:
+      fmin: 8.0
+      fmax: 13.0
+
+    beta:
+      fmin: 13.0
+      fmax: 30.0
+
+  rois:
+    frontal:
+      - F3
+      - F4
+      - FC5
+      - FC6
+
+    parietal_occipital:
+      - P7
+      - P8
+      - O1
+      - O2
+
+  relative_power: true
+  n_fft_seconds: 2.0
+
+early_late_psd:
+  enabled: true
+
+epochs:
+  response_locked:
+    events:
+      - correct_click
+    tmin: -1.0
+    tmax: 0.5
+    baseline:
+      start: -1.0
+      end: -0.8
+
+response_locked:
+  rp:
+    condition: correct_click
+    window:
+      start: -0.50
+      end: 0.00
+    roi:
+      - F3
+      - F4
+      - FC5
+      - FC6
+    peak_polarity: negative
+
+  pmp:
+    condition: correct_click
+    window:
+      start: 0.15
+      end: 0.35
+    roi:
+      - F3
+      - F4
+      - FC5
+      - FC6
+    peak_polarity: positive
+
+quality_control:
+  reject_criteria:
+    eeg_uv: 150.0
+
+  minimum_trials:
+    response_locked: 10
