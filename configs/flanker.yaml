@@ -1,4 +1,3 @@
-# Flanker experiment configuration
 # =============================================================================
 # NeuroCogEEG - Flanker Experiment Configuration
 # =============================================================================
@@ -7,6 +6,9 @@
 #
 # Device-level information such as Emotiv EPOC X channel order is stored in:
 # configs/emotiv_epocx.yaml
+#
+# Numeric event codes have no global meaning in NeuroCogEEG.
+# Their meaning is defined only within this experiment configuration.
 # =============================================================================
 
 experiment:
@@ -50,6 +52,7 @@ preprocessing:
 
 epochs:
   stimulus_locked:
+    event: stimulus
     tmin: -0.2
     tmax: 1.3
     baseline:
@@ -57,49 +60,109 @@ epochs:
       end: 0.0
 
   response_locked:
+    events:
+      - correct_response
+      - error_response
     tmin: -0.4
     tmax: 0.6
     baseline:
       start: -0.4
       end: -0.2
 
-erp_windows:
+behavior:
+  reaction_time:
+    start_event: stimulus
+    end_event: correct_response
+    min_ms: 100
+    max_ms: 1500
+
+  accuracy:
+    correct_event: correct_response
+    total_event: stimulus
+
+erp_components:
   n2:
-    start: 0.20
-    end: 0.35
+    condition: stimulus
+    window:
+      start: 0.20
+      end: 0.35
+    roi:
+      - F3
+      - F4
+      - FC5
+      - FC6
+    method: peak
+    polarity: negative
 
   p3:
-    start: 0.30
-    end: 0.60
+    condition: stimulus
+    window:
+      start: 0.30
+      end: 0.60
+    roi:
+      - P7
+      - P8
+      - O1
+      - O2
+    method: peak
+    polarity: positive
 
   ern:
-    start: 0.00
-    end: 0.10
+    type: difference
+    condition_a: error_response
+    condition_b: correct_response
+    weights:
+      condition_a: 1.0
+      condition_b: -1.0
+    window:
+      start: 0.00
+      end: 0.10
+    roi:
+      - F3
+      - F4
+      - FC5
+      - FC6
+    method: peak
+    polarity: negative
 
-roi:
-  n2:
-    - F3
-    - F4
-    - FC5
-    - FC6
+response_locked:
+  rp:
+    condition: correct_response
+    window:
+      start: -0.50
+      end: 0.00
+    roi:
+      - F3
+      - F4
+      - FC5
+      - FC6
+    peak_polarity: negative
 
-  p3:
-    - P7
-    - P8
-    - O1
-    - O2
-
-  ern:
-    - F3
-    - F4
-    - FC5
-    - FC6
+  pmp:
+    condition: correct_response
+    window:
+      start: 0.15
+      end: 0.35
+    roi:
+      - F3
+      - F4
+      - FC5
+      - FC6
+    peak_polarity: positive
 
 connectivity:
   methods:
     - coh
     - wpli
     - ciplv
+
+  mode: multitaper
+  faverage: true
+  fisher_z: false
+
+  time_window:
+    start: 0.00
+    end: 1.25
 
   frequency_bands:
     theta:
@@ -133,5 +196,7 @@ quality_control:
 
   minimum_trials:
     stimulus_locked: 10
+    response_locked: 10
     error_response: 3
     connectivity: 10
+
