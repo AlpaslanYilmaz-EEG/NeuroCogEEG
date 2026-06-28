@@ -54,6 +54,9 @@ def summarize_epochs(
     """
     Summarize epoch counts and drop percentage.
 
+    MNE stores non-selected events as ``IGNORED`` in ``epochs.drop_log``.
+    These ignored events should not be counted as dropped epochs.
+
     Parameters
     ----------
     epochs:
@@ -68,18 +71,31 @@ def summarize_epochs(
         Epoch quality summary.
     """
     kept_count = len(epochs)
-    total_count = len(epochs.drop_log)
-    dropped_count = total_count - kept_count
 
-    if total_count == 0:
+    ignored_count = 0
+    dropped_count = 0
+
+    for drop_entry in epochs.drop_log:
+        if len(drop_entry) == 0:
+            continue
+
+        if "IGNORED" in drop_entry:
+            ignored_count += 1
+        else:
+            dropped_count += 1
+
+    selected_total = kept_count + dropped_count
+
+    if selected_total == 0:
         drop_percent = float("nan")
     else:
-        drop_percent = float((dropped_count / total_count) * 100.0)
+        drop_percent = float((dropped_count / selected_total) * 100.0)
 
     return {
-        f"{prefix}_total": int(total_count),
+        f"{prefix}_total": int(selected_total),
         f"{prefix}_kept": int(kept_count),
         f"{prefix}_dropped": int(dropped_count),
+        f"{prefix}_ignored": int(ignored_count),
         f"{prefix}_drop_percent": drop_percent,
     }
 
