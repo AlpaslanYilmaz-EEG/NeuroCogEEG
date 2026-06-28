@@ -1,0 +1,198 @@
+device:
+  device:
+    name: Emotiv EPOC X
+    manufacturer: Emotiv
+    channel_count: 14
+  channels:
+    eeg:
+    - AF3
+    - F7
+    - F3
+    - FC5
+    - T7
+    - P7
+    - O1
+    - O2
+    - P8
+    - T8
+    - FC6
+    - F4
+    - F8
+    - AF4
+    eog:
+    - AF3
+    - AF4
+  montage:
+    name: standard_1020
+    coordinate_frame: head
+  reference:
+    type: average
+  marker_channels:
+    candidates:
+    - MarkerValueInt
+    - MARKER_HARDWARE
+    fallback_index: 25
+    scale_factor: 1000000
+    zero_value: 0
+experiment:
+  experiment:
+    name: flanker
+    description: Flanker task EEG analysis
+  events:
+    stimulus: 48
+    correct_response: 49
+    error_response: 50
+    missed_response: 51
+  preprocessing:
+    filtering:
+      ica:
+        l_freq: 1.0
+        h_freq: 100.0
+      analysis:
+        l_freq: 0.05
+        h_freq: 30.0
+    notch_filter:
+      enabled: true
+      frequency: 50.0
+    ica:
+      enabled: true
+      method: picard
+      n_components: 10
+      random_state: 97
+      fit_params:
+        ortho: false
+        extended: true
+    iclabel:
+      enabled: true
+      method: iclabel
+      exclude_non_brain: true
+  epochs:
+    stimulus_locked:
+      event: stimulus
+      tmin: -0.2
+      tmax: 1.3
+      baseline:
+        start: -0.2
+        end: 0.0
+    response_locked:
+      events:
+      - correct_response
+      - error_response
+      tmin: -0.4
+      tmax: 0.6
+      baseline:
+        start: -0.4
+        end: -0.2
+  behavior:
+    reaction_time:
+      start_event: stimulus
+      end_event: correct_response
+      min_ms: 100
+      max_ms: 1500
+    accuracy:
+      correct_event: correct_response
+      total_event: stimulus
+  erp_components:
+    n2:
+      condition: stimulus
+      window:
+        start: 0.2
+        end: 0.35
+      roi:
+      - F3
+      - F4
+      - FC5
+      - FC6
+      method: peak
+      polarity: negative
+    p3:
+      condition: stimulus
+      window:
+        start: 0.3
+        end: 0.6
+      roi:
+      - P7
+      - P8
+      - O1
+      - O2
+      method: peak
+      polarity: positive
+    ern:
+      type: difference
+      condition_a: error_response
+      condition_b: correct_response
+      weights:
+        condition_a: 1.0
+        condition_b: -1.0
+      window:
+        start: 0.0
+        end: 0.1
+      roi:
+      - F3
+      - F4
+      - FC5
+      - FC6
+      method: peak
+      polarity: negative
+  response_locked:
+    rp:
+      condition: correct_response
+      window:
+        start: -0.5
+        end: 0.0
+      roi:
+      - F3
+      - F4
+      - FC5
+      - FC6
+      peak_polarity: negative
+    pmp:
+      condition: correct_response
+      window:
+        start: 0.15
+        end: 0.35
+      roi:
+      - F3
+      - F4
+      - FC5
+      - FC6
+      peak_polarity: positive
+  connectivity:
+    methods:
+    - coh
+    - wpli
+    - ciplv
+    mode: multitaper
+    faverage: true
+    fisher_z: false
+    time_window:
+      start: 0.0
+      end: 1.25
+    frequency_bands:
+      theta:
+        fmin: 4.0
+        fmax: 8.0
+      alpha:
+        fmin: 8.0
+        fmax: 13.0
+      beta:
+        fmin: 13.0
+        fmax: 30.0
+    pairs:
+      interhemispheric:
+      - source: F3
+        target: F4
+      intrahemispheric_left:
+      - source: F3
+        target: P7
+      intrahemispheric_right:
+      - source: F4
+        target: P8
+  quality_control:
+    reject_criteria:
+      eeg_uv: 150.0
+    minimum_trials:
+      stimulus_locked: 10
+      response_locked: 10
+      error_response: 3
+      connectivity: 10
