@@ -172,10 +172,10 @@ def infer_missing_allowed(column_name, variable_family):
         return "yes"
 
     if column_name == "ern_amplitude_uv":
-        return "yes"
+        return "yes_if_no_usable_error_epochs"
 
     if column_name == "cnv_amplitude_uv":
-        return "yes"
+        return "yes_if_set_locked_minimum_trials_fail"
 
     if variable_family == "connectivity":
         return "yes_if_minimum_trials_fail"
@@ -186,7 +186,7 @@ def infer_missing_allowed(column_name, variable_family):
         return "yes_if_minimum_trials_fail"
 
     if variable_family in ["erp", "behavior", "behavior_reaction_time", "psd"]:
-        return "no_or_review"
+        return "no"
 
     if variable_family in ["event_count", "quality_control"]:
         return "no"
