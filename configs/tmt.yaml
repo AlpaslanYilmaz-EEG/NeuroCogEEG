@@ -4,11 +4,24 @@
 #
 # Numeric event codes have no global meaning in NeuroCogEEG.
 # Their meaning is defined only within this experiment configuration.
+#
+# TMT has two task variants:
+# - tmt1: numbers only
+# - tmt2: numbers and letters
 # =============================================================================
 
 experiment:
   name: "tmt"
   description: "Digital Trail Making Test EEG analysis"
+
+variants:
+  tmt1:
+    description: "TMT numbers-only condition"
+    folder: "tmt1"
+
+  tmt2:
+    description: "TMT numbers-and-letters condition"
+    folder: "tmt2"
 
 events:
   task_start: 48
