@@ -146,6 +146,7 @@ def create_epochs(
         baseline=baseline,
         reject=reject_criteria,
         preload=True,
+        on_missing="ignore",
         verbose=False,
     )
 
