@@ -116,3 +116,11 @@ The repository will contain permanent `data/` and `outputs/` folder structures.
 
 Reason:
 Pipelines can use stable relative paths while real data and generated outputs remain ignored by Git.
+
+## Decision 014
+
+Each new module must be validated with a basic syntax/import test before development continues.
+
+Reason:
+The project owner is not expected to manually inspect every line of generated code. Reliability must be maintained through small, repeatable validation steps.
+
