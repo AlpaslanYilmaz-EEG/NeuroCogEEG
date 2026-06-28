@@ -136,3 +136,40 @@ separate experiments and should not replace the group structure.
 
 The resulting output will contain an additional `tmt_variant` column with
 values such as `tmt1` and `tmt2`.
+
+---
+
+## Decision 016
+
+NeuroCogEEG will produce two classes of figures.
+
+Class 1: CSV-based summary figures
+
+These figures are generated from exported CSV files and do not require
+reprocessing EDF files. They include group-level summaries, task-level
+behavioral plots, PSD summaries, and QC summaries.
+
+Class 2: EEG waveform figures
+
+These figures require epoch-level or evoked-level EEG data. They include
+stimulus-locked ERP waveforms, response-locked RP/PMP waveforms, and set-locked
+CNV waveforms. These figures will be produced by reusing the same preprocessing
+and epoching logic used by the main pipelines.
+
+Required minimum figure outputs:
+
+- Flanker: N2, P3, ERN, RP, PMP summary figures and stimulus-/response-locked
+  grand-average waveform figures.
+- Go/No-Go: N2, P3, RP, PMP summary figures and stimulus-/response-locked
+  grand-average waveform figures.
+- ReadySetGo: CNV, RP, PMP summary figures and set-/response-locked
+  grand-average waveform figures.
+- TMT: behavioral duration/error figures, PSD summary figures, early-late PSD
+  change figures, and RP/PMP summary figures.
+- QC: minimum trial failure and missing-value summary figures.
+
+Rationale:
+
+CSV outputs are not sufficient for reporting EEG analyses. The project must
+produce reproducible figures from the same validated outputs and preprocessing
+logic used by the numerical analyses.
