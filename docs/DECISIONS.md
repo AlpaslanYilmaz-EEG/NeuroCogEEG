@@ -123,4 +123,16 @@ Each new module must be validated with a basic syntax/import test before develop
 
 Reason:
 The project owner is not expected to manually inspect every line of generated code. Reliability must be maintained through small, repeatable validation steps.
+---
 
+## Decision 015
+
+TMT1 and TMT2 will be treated as variants of the same TMT experiment.
+
+Reason:
+TMT1 and TMT2 share the same general task structure and analysis logic, but
+represent different task variants. Therefore, they should not be modeled as
+separate experiments and should not replace the group structure.
+
+The resulting output will contain an additional `tmt_variant` column with
+values such as `tmt1` and `tmt2`.
