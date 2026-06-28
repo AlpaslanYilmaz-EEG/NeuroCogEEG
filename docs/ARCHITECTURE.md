@@ -102,3 +102,14 @@ The pipelines (Flanker, Go/No-Go, Ready-Set-Go, TMT) only orchestrate the workfl
 
 No analysis logic should be duplicated between pipelines.
 
+## Event Semantics
+
+Numeric event codes do not have global meaning in NeuroCogEEG.
+
+The same numeric marker value may represent different events in different
+experiments. Therefore, event semantics must always be defined in the
+experiment-specific YAML file.
+
+Analysis code must never directly compare events to hard-coded numeric values
+such as 48, 49 or 50. Event codes must always be accessed through the loaded
+experiment configuration.
