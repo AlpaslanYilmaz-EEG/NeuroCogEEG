@@ -1,1 +1,625 @@
-"""Ready-Set-Go analysis pipeline."""
+"""
+Ready-Set-Go analysis pipeline for NeuroCogEEG.
+
+This pipeline performs:
+
+- EDF preprocessing
+- event extraction
+- behavioral response-time analysis
+- set-locked CNV analysis
+- response-locked RP/PMP analysis
+- spectral connectivity analysis
+- quality-control summaries
+- SPSS-compatible CSV export
+
+Numeric event values are never hard-coded. Event meanings are read from
+configs/readysetgo.yaml.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from neurocogeeg.behavior import (  # noqa: E402
+    compute_accuracy_percent,
+    compute_transition_latencies_ms,
+    count_events_from_config,
+    get_event_code,
+    summarize_latencies,
+)
+from neurocogeeg.connectivity import (  # noqa: E402
+    compute_connectivity_summary,
+    flatten_connectivity_pairs,
+    make_pair_key,
+)
+from neurocogeeg.dataset import SubjectRecord, get_dataset  # noqa: E402
+from neurocogeeg.epochs import (  # noqa: E402
+    create_epochs,
+    extract_events_from_marker_channel,
+    get_reject_criteria,
+)
+from neurocogeeg.erp import compute_component_from_epochs  # noqa: E402
+from neurocogeeg.export import (  # noqa: E402
+    add_subject_metadata,
+    merge_result_dicts,
+    save_config_snapshot,
+    save_spss_csv,
+)
+from neurocogeeg.preprocessing import (  # noqa: E402
+    load_device_config,
+    load_experiment_config,
+    preprocess_emotiv_edf,
+)
+from neurocogeeg.qc import (  # noqa: E402
+    merge_qc_summaries,
+    summarize_event_counts,
+    summarize_epochs,
+    summarize_epochs_by_condition,
+    summarize_minimum_trial_requirement,
+    summarize_preprocessing_info,
+    summarize_raw_info,
+)
+from neurocogeeg.rp import compute_response_locked_metrics_from_epochs  # noqa: E402
+
+
+EXPERIMENT = "readysetgo"
+
+
+def empty_connectivity_results(
+    connectivity_config: dict[str, Any],
+) -> dict[str, float]:
+    """
+    Create NaN-filled connectivity result columns.
+
+    Parameters
+    ----------
+    connectivity_config:
+        Connectivity section from readysetgo.yaml.
+
+    Returns
+    -------
+    dict[str, float]
+        NaN-filled connectivity result dictionary.
+    """
+    results: dict[str, float] = {}
+
+    methods = connectivity_config["methods"]
+    frequency_bands = connectivity_config["frequency_bands"]
+    pairs = flatten_connectivity_pairs(connectivity_config["pairs"])
+    use_fisher_z = connectivity_config.get("fisher_z", False)
+
+    for method in methods:
+        method_name = str(method).lower()
+
+        for band_name in frequency_bands:
+            for pair in pairs:
+                pair_key = make_pair_key(
+                    pair_group=pair["group"],
+                    source=pair["source"],
+                    target=pair["target"],
+                )
+
+                if use_fisher_z:
+                    output_key = f"z_{method_name}_{band_name}_{pair_key}"
+                else:
+                    output_key = f"{method_name}_{band_name}_{pair_key}"
+
+                results[output_key] = np.nan
+
+    return results
+
+
+def compute_behavioral_results(
+    events: np.ndarray,
+    sfreq: float,
+    experiment_config: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Compute Ready-Set-Go behavioral outcomes.
+
+    Parameters
+    ----------
+    events:
+        MNE events array.
+
+    sfreq:
+        Sampling frequency.
+
+    experiment_config:
+        Loaded readysetgo.yaml configuration.
+
+    Returns
+    -------
+    dict[str, Any]
+        Behavioral result dictionary.
+    """
+    events_config = experiment_config["events"]
+    behavior_config = experiment_config["behavior"]
+
+    event_counts = count_events_from_config(
+        events=events,
+        events_config=events_config,
+    )
+
+    rt_config = behavior_config["response_time"]
+
+    rt_start_code = get_event_code(
+        events_config=events_config,
+        event_name=rt_config["start_event"],
+    )
+    rt_end_code = get_event_code(
+        events_config=events_config,
+        event_name=rt_config["end_event"],
+    )
+
+    rt_values = compute_transition_latencies_ms(
+        events=events,
+        start_code=rt_start_code,
+        end_code=rt_end_code,
+        sfreq=sfreq,
+        min_latency_ms=rt_config.get("min_ms"),
+        max_latency_ms=rt_config.get("max_ms"),
+    )
+
+    rt_summary = summarize_latencies(
+        latencies_ms=rt_values,
+        prefix="response_time",
+    )
+
+    accuracy_config = behavior_config["accuracy"]
+
+    correct_code = get_event_code(
+        events_config=events_config,
+        event_name=accuracy_config["correct_event"],
+    )
+    total_code = get_event_code(
+        events_config=events_config,
+        event_name=accuracy_config["total_event"],
+    )
+
+    correct_count = int(np.sum(events[:, 2] == correct_code))
+    total_count = int(np.sum(events[:, 2] == total_code))
+
+    accuracy = compute_accuracy_percent(
+        correct_count=correct_count,
+        total_count=total_count,
+    )
+
+    return {
+        **event_counts,
+        **rt_summary,
+        "accuracy_percent": accuracy,
+    }
+
+
+def create_set_locked_epochs(
+    raw_clean,
+    events: np.ndarray,
+    experiment_config: dict[str, Any],
+):
+    """
+    Create set-locked epochs.
+
+    Parameters
+    ----------
+    raw_clean:
+        Preprocessed raw object.
+
+    events:
+        MNE events array.
+
+    experiment_config:
+        Loaded readysetgo.yaml configuration.
+
+    Returns
+    -------
+    mne.Epochs
+        Set-locked epochs.
+    """
+    events_config = experiment_config["events"]
+
+    set_code = get_event_code(
+        events_config=events_config,
+        event_name="set",
+    )
+
+    epoch_config = experiment_config["epochs"]["set_locked"]
+    reject_criteria = get_reject_criteria(
+        experiment_config["quality_control"]
+    )
+
+    return create_epochs(
+        raw=raw_clean,
+        events=events,
+        event_id={"set": set_code},
+        epoch_config=epoch_config,
+        reject_criteria=reject_criteria,
+        picks="eeg",
+    )
+
+
+def create_response_locked_epochs(
+    raw_clean,
+    events: np.ndarray,
+    experiment_config: dict[str, Any],
+):
+    """
+    Create response-locked epochs around go responses.
+
+    Parameters
+    ----------
+    raw_clean:
+        Preprocessed raw object.
+
+    events:
+        MNE events array.
+
+    experiment_config:
+        Loaded readysetgo.yaml configuration.
+
+    Returns
+    -------
+    mne.Epochs
+        Response-locked epochs.
+    """
+    events_config = experiment_config["events"]
+
+    response_code = get_event_code(
+        events_config=events_config,
+        event_name="go_response",
+    )
+
+    epoch_config = experiment_config["epochs"]["response_locked"]
+    reject_criteria = get_reject_criteria(
+        experiment_config["quality_control"]
+    )
+
+    return create_epochs(
+        raw=raw_clean,
+        events=events,
+        event_id={"go_response": response_code},
+        epoch_config=epoch_config,
+        reject_criteria=reject_criteria,
+        picks="eeg",
+    )
+
+
+def compute_cnv_results(
+    set_epochs,
+    experiment_config: dict[str, Any],
+) -> dict[str, float]:
+    """
+    Compute CNV from set-locked epochs.
+
+    Parameters
+    ----------
+    set_epochs:
+        Set-locked epochs.
+
+    experiment_config:
+        Loaded readysetgo.yaml configuration.
+
+    Returns
+    -------
+    dict[str, float]
+        CNV result dictionary.
+    """
+    cnv_config = experiment_config["cnv"]
+
+    return compute_component_from_epochs(
+        epochs=set_epochs,
+        condition=cnv_config["condition"],
+        component_name="cnv",
+        window_config=cnv_config["window"],
+        roi_channels=cnv_config["roi"],
+        method=cnv_config["method"],
+        polarity=cnv_config.get("polarity"),
+    )
+
+
+def compute_response_locked_results(
+    response_epochs,
+    experiment_config: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Compute RP and PMP from response-locked epochs.
+
+    Parameters
+    ----------
+    response_epochs:
+        Response-locked epochs.
+
+    experiment_config:
+        Loaded readysetgo.yaml configuration.
+
+    Returns
+    -------
+    dict[str, Any]
+        RP and PMP results.
+    """
+    rp_config = experiment_config["response_locked"]["rp"]
+    pmp_config = experiment_config["response_locked"]["pmp"]
+
+    return compute_response_locked_metrics_from_epochs(
+        epochs=response_epochs,
+        roi_channels=rp_config["roi"],
+        rp_window_config=rp_config["window"],
+        pmp_window_config=pmp_config["window"],
+        condition=rp_config["condition"],
+    )
+
+
+def compute_connectivity_results(
+    set_epochs,
+    experiment_config: dict[str, Any],
+) -> dict[str, float]:
+    """
+    Compute Ready-Set-Go connectivity results.
+
+    Parameters
+    ----------
+    set_epochs:
+        Set-locked epochs.
+
+    experiment_config:
+        Loaded readysetgo.yaml configuration.
+
+    Returns
+    -------
+    dict[str, float]
+        Connectivity result dictionary.
+    """
+    connectivity_config = experiment_config["connectivity"]
+    time_window = connectivity_config["time_window"]
+
+    return compute_connectivity_summary(
+        epochs=set_epochs,
+        connectivity_config=connectivity_config,
+        tmin=time_window["start"],
+        tmax=time_window["end"],
+        mode=connectivity_config.get("mode", "multitaper"),
+        faverage=connectivity_config.get("faverage", True),
+        fisher_z=connectivity_config.get("fisher_z", False),
+    )
+
+
+def process_subject(
+    subject: SubjectRecord,
+    device_config: dict[str, Any],
+    experiment_config: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Process one participant.
+
+    Parameters
+    ----------
+    subject:
+        Subject record.
+
+    device_config:
+        Loaded Emotiv device configuration.
+
+    experiment_config:
+        Loaded Ready-Set-Go experiment configuration.
+
+    Returns
+    -------
+    dict[str, Any]
+        One SPSS-compatible result row.
+    """
+    print(f"İşleniyor: {subject.subject_id} ({subject.group})")
+
+    try:
+        raw_clean, _ica, preprocessing_info = preprocess_emotiv_edf(
+            edf_path=subject.edf_path,
+            experiment=EXPERIMENT,
+        )
+
+        events = extract_events_from_marker_channel(
+            raw=raw_clean,
+            marker_channel=preprocessing_info["marker_channel"],
+            marker_config=device_config["marker_channels"],
+        )
+
+        sfreq = raw_clean.info["sfreq"]
+
+        behavioral_results = compute_behavioral_results(
+            events=events,
+            sfreq=sfreq,
+            experiment_config=experiment_config,
+        )
+
+        event_id = {
+            name: int(code)
+            for name, code in experiment_config["events"].items()
+        }
+
+        qc_event_results = summarize_event_counts(
+            events=events,
+            event_id=event_id,
+        )
+
+        qc_preprocessing_results = summarize_preprocessing_info(
+            preprocessing_info
+        )
+
+        qc_raw_results = summarize_raw_info(raw_clean)
+
+        set_epochs = create_set_locked_epochs(
+            raw_clean=raw_clean,
+            events=events,
+            experiment_config=experiment_config,
+        )
+
+        response_epochs = create_response_locked_epochs(
+            raw_clean=raw_clean,
+            events=events,
+            experiment_config=experiment_config,
+        )
+
+        qc_set_epochs = summarize_epochs(
+            set_epochs,
+            prefix="set_locked_epochs",
+        )
+
+        qc_response_epochs = summarize_epochs(
+            response_epochs,
+            prefix="response_locked_epochs",
+        )
+
+        qc_set_conditions = summarize_epochs_by_condition(
+            set_epochs,
+            prefix="set_condition",
+        )
+
+        qc_response_conditions = summarize_epochs_by_condition(
+            response_epochs,
+            prefix="response_condition",
+        )
+
+        minimum_trials = experiment_config["quality_control"][
+            "minimum_trials"
+        ]
+
+        set_minimum = summarize_minimum_trial_requirement(
+            observed_count=len(set_epochs),
+            minimum_count=minimum_trials["set_locked"],
+            label="set_locked_trials",
+        )
+
+        response_minimum = summarize_minimum_trial_requirement(
+            observed_count=len(response_epochs),
+            minimum_count=minimum_trials["response_locked"],
+            label="response_locked_trials",
+        )
+
+        if len(set_epochs) >= minimum_trials["set_locked"]:
+            cnv_results = compute_cnv_results(
+                set_epochs=set_epochs,
+                experiment_config=experiment_config,
+            )
+        else:
+            cnv_results = {
+                "cnv_amplitude_uv": np.nan,
+            }
+
+        response_results = compute_response_locked_results(
+            response_epochs=response_epochs,
+            experiment_config=experiment_config,
+        )
+
+        if len(set_epochs) >= minimum_trials["connectivity"]:
+            connectivity_results = compute_connectivity_results(
+                set_epochs=set_epochs,
+                experiment_config=experiment_config,
+            )
+        else:
+            connectivity_results = empty_connectivity_results(
+                experiment_config["connectivity"]
+            )
+
+        qc_results = merge_qc_summaries(
+            qc_event_results,
+            qc_preprocessing_results,
+            qc_raw_results,
+            qc_set_epochs,
+            qc_response_epochs,
+            qc_set_conditions,
+            qc_response_conditions,
+            set_minimum,
+            response_minimum,
+        )
+
+        result_row = merge_result_dicts(
+            behavioral_results,
+            cnv_results,
+            response_results,
+            connectivity_results,
+            qc_results,
+        )
+
+        return add_subject_metadata(
+            result_row=result_row,
+            subject_id=subject.subject_id,
+            group=subject.group,
+            experiment=subject.experiment,
+        )
+
+    except Exception as error:
+        print(f"❌ Hata: {subject.subject_id}: {error}")
+
+        return add_subject_metadata(
+            result_row={
+                "processing_error": str(error),
+            },
+            subject_id=subject.subject_id,
+            group=subject.group,
+            experiment=subject.experiment,
+        )
+
+
+def run_pipeline() -> Path | None:
+    """
+    Run the Ready-Set-Go pipeline for all available participants.
+
+    Returns
+    -------
+    Path | None
+        Path to the saved CSV file, or None if no subjects were found.
+    """
+    dataset = get_dataset(EXPERIMENT)
+    dataset.ensure_output_dirs()
+
+    device_config = load_device_config()
+    experiment_config = load_experiment_config(EXPERIMENT)
+
+    save_config_snapshot(
+        config={
+            "device": device_config,
+            "experiment": experiment_config,
+        },
+        output_path=dataset.reports_dir / "used_readysetgo_config.yaml",
+    )
+
+    subjects = dataset.list_subjects()
+
+    if not subjects:
+        print("Hiç EDF dosyası bulunamadı.")
+        print("Beklenen klasörler:")
+        print(dataset.group_raw_dir("control"))
+        print(dataset.group_raw_dir("experimental"))
+        return None
+
+    rows: list[dict[str, Any]] = []
+
+    for subject in subjects:
+        rows.append(
+            process_subject(
+                subject=subject,
+                device_config=device_config,
+                experiment_config=experiment_config,
+            )
+        )
+
+    output_path = dataset.csv_dir / "readysetgo_results.csv"
+
+    save_spss_csv(
+        rows=rows,
+        output_path=output_path,
+    )
+
+    print(f"Sonuç dosyası kaydedildi: {output_path}")
+
+    return output_path
+
+
+if __name__ == "__main__":
+    run_pipeline()
