@@ -78,11 +78,11 @@ experiment:
       events:
       - correct_response
       - error_response
-      tmin: -0.4
+      tmin: -0.6
       tmax: 0.6
       baseline:
-        start: -0.4
-        end: -0.2
+        start: -0.6
+        end: -0.5
   behavior:
     reaction_time:
       start_event: stimulus
