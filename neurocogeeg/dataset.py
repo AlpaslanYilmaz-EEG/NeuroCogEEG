@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Iterable
 
 from neurocogeeg.constants import SUPPORTED_EEG_EXTENSIONS
 
@@ -35,30 +36,43 @@ OUTPUT_SUBDIRS = (
     "logs",
 )
 
+EXPERIMENT_VARIANTS = {
+    "tmt": (
+        "tmt1",
+        "tmt2",
+    ),
+}
+
 
 @dataclass(frozen=True)
 class SubjectRecord:
     """
     Representation of a single participant EEG file.
 
-    Attributes:
-        subject_id:
-            Participant identifier derived from the EDF filename stem.
+    Attributes
+    ----------
+    subject_id:
+        Participant identifier derived from the EDF filename stem.
 
-        experiment:
-            Experiment name, such as ``flanker`` or ``tmt``.
+    experiment:
+        Experiment name, such as ``flanker`` or ``tmt``.
 
-        group:
-            Group name, either ``control`` or ``experimental``.
+    group:
+        Group name, either ``control`` or ``experimental``.
 
-        edf_path:
-            Full path to the participant's EDF file.
+    edf_path:
+        Full path to the participant's EDF file.
+
+    variant:
+        Optional experiment variant. For example, TMT uses ``tmt1`` and
+        ``tmt2``. Experiments without variants use ``None``.
     """
 
     subject_id: str
     experiment: str
     group: str
     edf_path: Path
+    variant: str | None = None
 
 
 @dataclass(frozen=True)
@@ -66,13 +80,14 @@ class ExperimentDataset:
     """
     Accessor for one experiment's data and output folders.
 
-    Parameters:
-        project_root:
-            Root directory of the NeuroCogEEG repository.
+    Parameters
+    ----------
+    project_root:
+        Root directory of the NeuroCogEEG repository.
 
-        experiment:
-            Experiment name. Must be one of:
-            ``flanker``, ``gonogo``, ``readysetgo`` or ``tmt``.
+    experiment:
+        Experiment name. Must be one of:
+        ``flanker``, ``gonogo``, ``readysetgo`` or ``tmt``.
     """
 
     project_root: Path
@@ -127,32 +142,82 @@ class ExperimentDataset:
         """Return the logs output directory."""
         return self.output_dir / "logs"
 
-    def group_raw_dir(self, group: str) -> Path:
+    @property
+    def variants(self) -> tuple[str, ...]:
+        """
+        Return variants for the current experiment.
+
+        Experiments without variants return an empty tuple.
+        """
+        return EXPERIMENT_VARIANTS.get(self.experiment, ())
+
+    @property
+    def has_variants(self) -> bool:
+        """
+        Return whether this experiment has variants.
+
+        Example
+        -------
+        TMT has variants: ``tmt1`` and ``tmt2``.
+        """
+        return len(self.variants) > 0
+
+    def group_raw_dir(
+        self,
+        group: str,
+        variant: str | None = None,
+    ) -> Path:
         """
         Return the raw EDF directory for a group.
 
-        Parameters:
-            group:
-                Group name. Must be either ``control`` or ``experimental``.
+        Parameters
+        ----------
+        group:
+            Group name. Must be either ``control`` or ``experimental``.
 
-        Returns:
+        variant:
+            Optional experiment variant. Required for variant-based
+            experiments such as TMT.
+
+        Returns
+        -------
+        Path
             Path to the raw EEG folder for the selected group.
         """
         self._validate_group(group)
+
+        if self.has_variants:
+            self._validate_variant(variant)
+            return self.raw_dir / str(variant) / group
+
         return self.raw_dir / group
 
-    def list_edf_files(self, group: str) -> list[Path]:
+    def list_edf_files(
+        self,
+        group: str,
+        variant: str | None = None,
+    ) -> list[Path]:
         """
         List EDF files for a given group.
 
-        Parameters:
-            group:
-                Group name. Must be either ``control`` or ``experimental``.
+        Parameters
+        ----------
+        group:
+            Group name. Must be either ``control`` or ``experimental``.
 
-        Returns:
+        variant:
+            Optional experiment variant. Required for variant-based
+            experiments such as TMT.
+
+        Returns
+        -------
+        list[Path]
             Sorted list of EDF file paths.
         """
-        raw_group_dir = self.group_raw_dir(group)
+        raw_group_dir = self.group_raw_dir(
+            group=group,
+            variant=variant,
+        )
 
         if not raw_group_dir.exists():
             return []
@@ -168,18 +233,55 @@ class ExperimentDataset:
 
         return sorted(edf_files)
 
-    def list_subjects(self) -> list[SubjectRecord]:
+    def list_subjects(
+        self,
+        variants: Iterable[str] | None = None,
+    ) -> list[SubjectRecord]:
         """
         List all participant EDF files for the experiment.
 
-        Returns:
-            List of ``SubjectRecord`` objects for both control and experimental
-            groups.
+        Parameters
+        ----------
+        variants:
+            Optional variant names to include. Only used for experiments with
+            variants.
+
+        Returns
+        -------
+        list[SubjectRecord]
+            List of ``SubjectRecord`` objects.
         """
         subjects: list[SubjectRecord] = []
 
+        if self.has_variants:
+            selected_variants = (
+                tuple(variants)
+                if variants is not None
+                else self.variants
+            )
+
+            for variant in selected_variants:
+                self._validate_variant(variant)
+
+                for group in VALID_GROUPS:
+                    for edf_path in self.list_edf_files(
+                        group=group,
+                        variant=variant,
+                    ):
+                        subjects.append(
+                            SubjectRecord(
+                                subject_id=edf_path.stem,
+                                experiment=self.experiment,
+                                group=group,
+                                edf_path=edf_path,
+                                variant=variant,
+                            )
+                        )
+
+            return subjects
+
         for group in VALID_GROUPS:
-            for edf_path in self.list_edf_files(group):
+            for edf_path in self.list_edf_files(group=group):
                 subjects.append(
                     SubjectRecord(
                         subject_id=edf_path.stem,
@@ -207,14 +309,45 @@ class ExperimentDataset:
         """
         Validate group name.
 
-        Parameters:
-            group:
-                Group name to validate.
+        Parameters
+        ----------
+        group:
+            Group name to validate.
         """
         if group not in VALID_GROUPS:
             valid = ", ".join(VALID_GROUPS)
             raise ValueError(
                 f"Unknown group: {group!r}. Valid groups are: {valid}"
+            )
+
+    def _validate_variant(self, variant: str | None) -> None:
+        """
+        Validate experiment variant.
+
+        Parameters
+        ----------
+        variant:
+            Variant name to validate.
+        """
+        if not self.has_variants:
+            if variant is not None:
+                raise ValueError(
+                    f"Experiment {self.experiment!r} does not use variants."
+                )
+            return
+
+        if variant is None:
+            valid = ", ".join(self.variants)
+            raise ValueError(
+                f"Experiment {self.experiment!r} requires a variant. "
+                f"Valid variants are: {valid}"
+            )
+
+        if variant not in self.variants:
+            valid = ", ".join(self.variants)
+            raise ValueError(
+                f"Unknown variant: {variant!r}. "
+                f"Valid variants for {self.experiment!r} are: {valid}"
             )
 
 
@@ -226,7 +359,9 @@ def get_project_root() -> Path:
 
     ``NeuroCogEEG/neurocogeeg/dataset.py``
 
-    Returns:
+    Returns
+    -------
+    Path
         Path to the repository root.
     """
     return Path(__file__).resolve().parents[1]
@@ -236,12 +371,15 @@ def get_dataset(experiment: str) -> ExperimentDataset:
     """
     Create an ``ExperimentDataset`` object for a given experiment.
 
-    Parameters:
-        experiment:
-            Experiment name, such as ``flanker``, ``gonogo``,
-            ``readysetgo`` or ``tmt``.
+    Parameters
+    ----------
+    experiment:
+        Experiment name, such as ``flanker``, ``gonogo``,
+        ``readysetgo`` or ``tmt``.
 
-    Returns:
+    Returns
+    -------
+    ExperimentDataset
         Initialized ``ExperimentDataset``.
     """
     return ExperimentDataset(
