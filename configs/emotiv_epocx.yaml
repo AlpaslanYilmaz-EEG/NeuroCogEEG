@@ -1,4 +1,4 @@
-```yaml
+
 # =============================================================================
 # NeuroCogEEG - Emotiv EPOC X Device Configuration
 # =============================================================================
@@ -51,4 +51,4 @@ marker_channels:
   # Used only when no named marker channel is found.
   # This preserves compatibility with older EDF exports.
   fallback_index: 25
-```
+
