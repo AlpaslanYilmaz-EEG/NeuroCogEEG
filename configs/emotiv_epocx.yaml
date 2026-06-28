@@ -52,3 +52,12 @@ marker_channels:
   # This preserves compatibility with older EDF exports.
   fallback_index: 25
 
+  # Marker channel values in some EDF exports are stored in scaled units.
+  # Previous analysis scripts used: marker_value = raw_value * 1000000
+  scale_factor: 1000000
+
+  zero_value: 0
+  # Used only when no named marker channel is found.
+  # This preserves compatibility with older EDF exports.
+  fallback_index: 25
+
