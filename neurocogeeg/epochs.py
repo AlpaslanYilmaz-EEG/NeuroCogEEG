@@ -150,7 +150,7 @@ def create_epochs(
         verbose=False,
     )
 
-    epochs.pick(picks=picks)
+#    epochs.pick(picks=picks)
 
     return epochs
 
