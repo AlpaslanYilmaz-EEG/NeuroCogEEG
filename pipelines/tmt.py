@@ -1,3 +1,4 @@
+
 """
 Trail Making Test analysis pipeline for NeuroCogEEG.
 
@@ -11,6 +12,11 @@ This pipeline performs:
 - response-locked RP/PMP analysis
 - quality-control summaries
 - SPSS-compatible CSV export
+
+TMT has two variants:
+
+- tmt1: numbers only
+- tmt2: numbers and letters
 
 Numeric event values are never hard-coded. Event meanings are read from
 configs/tmt.yaml.
@@ -70,6 +76,46 @@ from neurocogeeg.rp import compute_response_locked_metrics_from_epochs  # noqa: 
 
 
 EXPERIMENT = "tmt"
+
+
+def add_tmt_metadata(
+    result_row: dict[str, Any],
+    subject: SubjectRecord,
+) -> dict[str, Any]:
+    """
+    Add standard metadata and TMT variant information.
+
+    Parameters
+    ----------
+    result_row:
+        Analysis result dictionary.
+
+    subject:
+        Subject record containing subject, group and variant information.
+
+    Returns
+    -------
+    dict[str, Any]
+        Result row with metadata fields.
+    """
+    row = add_subject_metadata(
+        result_row=result_row,
+        subject_id=subject.subject_id,
+        group=subject.group,
+        experiment=subject.experiment,
+    )
+
+    return {
+        "subject_id": row["subject_id"],
+        "group": row["group"],
+        "experiment": row["experiment"],
+        "tmt_variant": subject.variant,
+        **{
+            key: value
+            for key, value in row.items()
+            if key not in {"subject_id", "group", "experiment"}
+        },
+    }
 
 
 def get_task_segment_samples(
@@ -571,7 +617,10 @@ def process_subject(
     dict[str, Any]
         One SPSS-compatible result row.
     """
-    print(f"İşleniyor: {subject.subject_id} ({subject.group})")
+    print(
+        f"İşleniyor: {subject.subject_id} "
+        f"({subject.group}, {subject.variant})"
+    )
 
     try:
         raw_clean, _ica, preprocessing_info = preprocess_emotiv_edf(
@@ -674,23 +723,19 @@ def process_subject(
             qc_results,
         )
 
-        return add_subject_metadata(
+        return add_tmt_metadata(
             result_row=result_row,
-            subject_id=subject.subject_id,
-            group=subject.group,
-            experiment=subject.experiment,
+            subject=subject,
         )
 
     except Exception as error:
         print(f"❌ Hata: {subject.subject_id}: {error}")
 
-        return add_subject_metadata(
+        return add_tmt_metadata(
             result_row={
                 "processing_error": str(error),
             },
-            subject_id=subject.subject_id,
-            group=subject.group,
-            experiment=subject.experiment,
+            subject=subject,
         )
 
 
@@ -722,8 +767,11 @@ def run_pipeline() -> Path | None:
     if not subjects:
         print("Hiç EDF dosyası bulunamadı.")
         print("Beklenen klasörler:")
-        print(dataset.group_raw_dir("control"))
-        print(dataset.group_raw_dir("experimental"))
+
+        for variant in dataset.variants:
+            print(dataset.group_raw_dir("control", variant))
+            print(dataset.group_raw_dir("experimental", variant))
+
         return None
 
     rows: list[dict[str, Any]] = []
@@ -751,3 +799,4 @@ def run_pipeline() -> Path | None:
 
 if __name__ == "__main__":
     run_pipeline()
+

@@ -38,6 +38,13 @@ experiment:
   experiment:
     name: tmt
     description: Digital Trail Making Test EEG analysis
+  variants:
+    tmt1:
+      description: TMT numbers-only condition
+      folder: tmt1
+    tmt2:
+      description: TMT numbers-and-letters condition
+      folder: tmt2
   events:
     task_start: 48
     correct_click: 49
