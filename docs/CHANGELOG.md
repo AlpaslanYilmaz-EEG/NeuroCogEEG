@@ -26,3 +26,62 @@ Current status:
 - ReadySetGo has one participant failing set-locked minimum trial criteria.
 - TMT has 18 rows failing response-locked RP/PMP minimum trial criteria.
 - TMT PSD outputs are complete for all rows.
+```markdown
+---
+
+## Field Test and SPSS Export Checkpoint
+
+All four experiment pipelines were tested with real EDF files.
+
+Completed real-data pipeline tests:
+
+- Flanker
+- Go/No-Go
+- ReadySetGo
+- TMT
+
+Current real-data status:
+
+- All four pipelines completed without processing errors.
+- Flanker produced 46 rows.
+- Go/No-Go produced 46 rows.
+- ReadySetGo produced 46 rows.
+- TMT produced 92 rows, with 46 rows for TMT1 and 46 rows for TMT2.
+- TMT variants are represented using the `tmt_variant` column.
+
+Known and expected missing-value situations:
+
+- Flanker ERN can be missing when a participant has no usable error-response epochs.
+- ReadySetGo CNV and set-locked connectivity can be missing when set-locked minimum trial criteria are not met.
+- TMT RP/PMP values can be missing when response-locked minimum trial criteria are not met.
+- Missing `qc_ica_excluded_components` values usually indicate that no ICA component was excluded.
+
+QC and export tools added:
+
+- `pipelines/qc_report.py`
+- `pipelines/variable_inventory.py`
+- `pipelines/variable_dictionary_draft.py`
+- `pipelines/spss_main_column_plan.py`
+- `pipelines/spss_main_export.py`
+- `pipelines/validate_spss_main.py`
+
+Generated SPSS main analysis files:
+
+- `outputs/flanker/csv/flanker_spss_main.csv`
+- `outputs/gonogo/csv/gonogo_spss_main.csv`
+- `outputs/readysetgo/csv/readysetgo_spss_main.csv`
+- `outputs/tmt/csv/tmt_spss_main.csv`
+
+SPSS main validation result:
+
+- Flanker: 46 rows, 54 columns
+- Go/No-Go: 46 rows, 53 columns
+- ReadySetGo: 46 rows, 52 columns
+- TMT: 92 rows, 50 columns
+- Validation error count: 0
+- Result: PASS
+
+Current project status:
+
+The pipeline can now run from real EDF files to cleaned SPSS-ready main analysis CSV files with automated QC, variable inventory, variable dictionary draft, column selection plan, export, and validation checks.
+```
