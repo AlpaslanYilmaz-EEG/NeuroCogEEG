@@ -85,3 +85,43 @@ Current project status:
 
 The pipeline can now run from real EDF files to cleaned SPSS-ready main analysis CSV files with automated QC, variable inventory, variable dictionary draft, column selection plan, export, and validation checks.
 ```
+---
+
+## Figure Generation Checkpoint
+
+Figure generation pipelines were added and validated.
+
+Completed figure pipelines:
+
+- `pipelines/plot_csv_summaries.py`
+- `pipelines/plot_flanker_waveforms.py`
+- `pipelines/plot_gonogo_waveforms.py`
+- `pipelines/plot_readysetgo_waveforms.py`
+- `pipelines/plot_tmt_waveforms.py`
+- `pipelines/plot_tmt_topomaps.py`
+- `pipelines/validate_figures.py`
+
+Generated figure classes:
+
+- CSV-based summary figures
+- Flanker stimulus-locked and response-locked waveform figures
+- Go/No-Go stimulus-locked and response-locked waveform figures
+- ReadySetGo set-locked CNV and response-locked waveform figures
+- TMT response-locked waveform figures
+- TMT descriptive scalp topomap figures
+
+Expected figure counts:
+
+- CSV summary figures: 31
+- Flanker waveform figures: 4
+- Go/No-Go waveform figures: 4
+- ReadySetGo waveform figures: 3
+- TMT waveform figures: 2
+- TMT topomap figures: 12
+- Total expected figures: 56
+
+Validation status:
+
+- `pipelines/validate_figures.py` passed.
+- Figure validation error count: 0.
+- Generated figure files are treated as reproducible outputs and are ignored by Git.
