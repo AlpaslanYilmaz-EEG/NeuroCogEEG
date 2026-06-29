@@ -125,3 +125,43 @@ Validation status:
 - `pipelines/validate_figures.py` passed.
 - Figure validation error count: 0.
 - Generated figure files are treated as reproducible outputs and are ignored by Git.
+
+---
+
+## Full Analysis Runner Checkpoint
+
+A full analysis orchestration pipeline was added.
+
+Added script:
+
+- `pipelines/run_full_analysis.py`
+
+Purpose:
+
+The script runs the complete NeuroCogEEG workflow in the validated order:
+
+1. Syntax check
+2. Main EEG analysis pipelines
+3. QC report generation
+4. Variable inventory generation
+5. Variable dictionary draft generation
+6. SPSS main column planning
+7. SPSS main export
+8. SPSS main validation
+9. CSV-based summary figures
+10. Waveform figures
+11. TMT topomap figures
+12. Figure validation
+
+Validation status:
+
+- Partial workflow test passed.
+- Full workflow test passed.
+- Final result: PASS.
+
+Current status:
+
+The project can now be reproduced from raw EDF files to validated SPSS-ready outputs and validated figure outputs using a single command:
+
+```bash
+python pipelines/run_full_analysis.py
