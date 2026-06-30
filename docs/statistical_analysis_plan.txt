@@ -390,3 +390,25 @@ Before inferential statistics are implemented, the next technical task is:
 
 ```
 ```
+A planned derived variable should be created:
+
+- `participant_id`
+
+This variable should identify the same participant across TMT1 and TMT2 rows.
+
+TMT filename rule:
+
+The same participant has variant-specific EDF filenames:
+
+- TMT1: `xxxxxizol1.edf`
+- TMT2: `xxxxxizol2.edf`
+
+Therefore, `participant_id` should be derived by removing the final variant
+suffix only when the `subject_id` ends with `izol1` or `izol2`.
+
+Examples:
+
+- `xxxxxizol1` → `xxxxxizol`
+- `xxxxxizol2` → `xxxxxizol`
+
+This rule must be validated before mixed-design TMT statistics are performed.
