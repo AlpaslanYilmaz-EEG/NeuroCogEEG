@@ -116,6 +116,11 @@ STEPS = [
     "command": [sys.executable, "pipelines/generate_spss_syntax.py"],
     },
     {
+    "name": "validate_spss_syntax",
+    "description": "Validate generated SPSS syntax files",
+    "command": [sys.executable, "pipelines/validate_spss_syntax.py"],
+    },
+    {
         "name": "plot_csv_summaries",
         "description": "Create CSV-based summary figures",
         "command": [sys.executable, "pipelines/plot_csv_summaries.py"],
