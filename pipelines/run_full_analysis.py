@@ -111,6 +111,11 @@ STEPS = [
     "command": [sys.executable, "pipelines/statistics_descriptives.py"],
     },
     {
+    "name": "generate_spss_syntax",
+    "description": "Generate SPSS syntax files for planned statistical analyses",
+    "command": [sys.executable, "pipelines/generate_spss_syntax.py"],
+    },
+    {
         "name": "plot_csv_summaries",
         "description": "Create CSV-based summary figures",
         "command": [sys.executable, "pipelines/plot_csv_summaries.py"],
