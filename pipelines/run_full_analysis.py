@@ -101,6 +101,11 @@ STEPS = [
         "command": [sys.executable, "pipelines/validate_spss_main.py"],
     },
     {
+    "name": "prepare_statistics_data",
+    "description": "Prepare statistics-ready CSV files and validate participant IDs",
+    "command": [sys.executable, "pipelines/prepare_statistics_data.py"],
+    },
+    {
         "name": "plot_csv_summaries",
         "description": "Create CSV-based summary figures",
         "command": [sys.executable, "pipelines/plot_csv_summaries.py"],
