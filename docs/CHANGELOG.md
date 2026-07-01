@@ -165,3 +165,56 @@ The project can now be reproduced from raw EDF files to validated SPSS-ready out
 
 ```bash
 python pipelines/run_full_analysis.py
+
+---
+
+## Statistics and SPSS Syntax Checkpoint
+
+Statistics preparation and SPSS syntax generation steps were added to the full analysis workflow.
+
+Added scripts:
+
+- `pipelines/prepare_statistics_data.py`
+- `pipelines/statistics_descriptives.py`
+- `pipelines/generate_spss_syntax.py`
+- `pipelines/validate_spss_syntax.py`
+
+Integrated into:
+
+- `pipelines/run_full_analysis.py`
+
+Completed functionality:
+
+- Statistics-ready CSV files are generated from validated SPSS main files.
+- Stable `participant_id` values are derived.
+- TMT `tmt1` / `tmt2` participant pairing is validated.
+- Duplicate participant IDs and group conflicts are checked.
+- Analysis-specific inclusion flags are generated.
+- Descriptive statistics tables are produced.
+- SPSS syntax files are generated for planned analyses.
+- SPSS syntax files are structurally validated.
+
+Generated statistics outputs:
+
+- `outputs/statistics/flanker_statistics_ready.csv`
+- `outputs/statistics/gonogo_statistics_ready.csv`
+- `outputs/statistics/readysetgo_statistics_ready.csv`
+- `outputs/statistics/tmt_statistics_ready.csv`
+- `outputs/statistics/descriptives/all_descriptives.csv`
+- `outputs/statistics/spss_syntax/run_all_analyses.sps`
+
+Validation status:
+
+- `prepare_statistics_data.py`: PASS
+- `statistics_descriptives.py`: PASS
+- `generate_spss_syntax.py`: PASS
+- `validate_spss_syntax.py`: PASS
+- `run_full_analysis.py`: PASS
+
+Current full workflow status:
+
+The complete NeuroCogEEG workflow now runs from raw EDF files to validated analysis outputs, descriptive statistics, SPSS syntax files, and validated figures using:
+
+```bash
+python pipelines/run_full_analysis.py
+
