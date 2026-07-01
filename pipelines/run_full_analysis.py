@@ -106,6 +106,11 @@ STEPS = [
     "command": [sys.executable, "pipelines/prepare_statistics_data.py"],
     },
     {
+    "name": "statistics_descriptives",
+    "description": "Create descriptive statistics tables from statistics-ready files",
+    "command": [sys.executable, "pipelines/statistics_descriptives.py"],
+    },
+    {
         "name": "plot_csv_summaries",
         "description": "Create CSV-based summary figures",
         "command": [sys.executable, "pipelines/plot_csv_summaries.py"],
