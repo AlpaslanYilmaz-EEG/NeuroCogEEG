@@ -6,17 +6,23 @@ This script extracts selected SPSS output tables from exported .xlsx files.
 It does not run SPSS.
 It does not run statistical tests.
 
-Currently supported:
+Supported:
 - Group Statistics
 - Independent Samples Test
+- TMT MIXED Type III Tests of Fixed Effects
+- TMT Estimated Marginal Means
 
 Outputs:
 - outputs/statistics/spss_extracted/group_statistics.csv
 - outputs/statistics/spss_extracted/independent_samples_tests.csv
 - outputs/statistics/spss_extracted/independent_samples_tests_reporting.csv
+- outputs/statistics/spss_extracted/tmt_mixed_fixed_effects.csv
+- outputs/statistics/spss_extracted/tmt_mixed_fixed_effects_reporting.csv
+- outputs/statistics/spss_extracted/tmt_estimated_marginal_means.csv
 - outputs/qc/spss_result_extraction_manifest.csv
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -66,6 +72,21 @@ VARIABLE_FAMILIES = {
     "cnv_amplitude_uv": "cnv",
     "rp_mean_uv": "response_locked",
     "pmp_peak_uv": "response_locked",
+    "task_duration_s": "tmt_behavior",
+    "error_percent": "tmt_behavior",
+    "frontal_theta_relative_percent": "tmt_psd",
+    "frontal_alpha_relative_percent": "tmt_psd",
+    "frontal_beta_relative_percent": "tmt_psd",
+    "parietal_occipital_theta_relative_percent": "tmt_psd",
+    "parietal_occipital_alpha_relative_percent": "tmt_psd",
+    "parietal_occipital_beta_relative_percent": "tmt_psd",
+}
+
+
+TMT_REPORTABLE_EFFECTS = {
+    "group_code",
+    "tmt_variant_code",
+    "group_code * tmt_variant_code",
 }
 
 
@@ -82,9 +103,6 @@ def write_csv(dataframe, path):
 
 
 def read_spss_export_xlsx(path):
-    """
-    Read the first sheet of an SPSS Excel export without assuming headers.
-    """
     return pd.read_excel(
         path,
         sheet_name=0,
@@ -110,8 +128,16 @@ def to_float(value):
     if pd.isna(value):
         return None
 
+    text = str(value).strip().replace(",", ".")
+
+    text = re.sub(
+        r"^([-+]?\d+(?:\.\d+)?)([A-Za-z]+)$",
+        r"\1",
+        text,
+    )
+
     try:
-        return float(value)
+        return float(text)
     except Exception:
         return None
 
@@ -122,10 +148,22 @@ def find_title_rows(dataframe, title):
     for row_index in range(len(dataframe)):
         value = cell_text(dataframe.iat[row_index, 0])
 
-        if value == title:
+        if value == title or value.startswith(title):
             rows.append(row_index)
 
     return rows
+
+
+def parse_dependent_variable(text):
+    match = re.search(
+        r"Dependent Variable:\s*([A-Za-z0-9_]+)",
+        str(text),
+    )
+
+    if match:
+        return match.group(1)
+
+    return ""
 
 
 def parse_group_statistics(experiment, dataframe):
@@ -220,14 +258,136 @@ def parse_independent_samples_tests(experiment, dataframe):
     return rows
 
 
-def add_reporting_choice(test_table):
-    """
-    Choose the row to report based on Levene's test.
+def parse_tmt_mixed_fixed_effects(experiment, dataframe):
+    rows = []
+    title_rows = find_title_rows(dataframe, "Type III Tests of Fixed Effects")
 
-    Rule:
-    - If Levene Sig. >= .05: report Equal variances assumed.
-    - If Levene Sig. < .05: report Equal variances not assumed.
-    """
+    for table_index, title_row in enumerate(title_rows, start=1):
+        row_index = title_row + 2
+        data_rows = []
+        dependent_variable = ""
+
+        while row_index < len(dataframe):
+            source = cell_text(dataframe.iat[row_index, 0])
+
+            if source.startswith("a. Dependent Variable"):
+                dependent_variable = parse_dependent_variable(source)
+                break
+
+            if is_blank(source):
+                break
+
+            if source != "Source":
+                data_rows.append(
+                    {
+                        "row_index": row_index,
+                        "effect": source,
+                    }
+                )
+
+            row_index += 1
+
+        if not dependent_variable:
+            for search_index in range(row_index, min(row_index + 8, len(dataframe))):
+                text = cell_text(dataframe.iat[search_index, 0])
+
+                if text.startswith("a. Dependent Variable"):
+                    dependent_variable = parse_dependent_variable(text)
+                    break
+
+        for data_row in data_rows:
+            source_row = data_row["row_index"]
+            effect = data_row["effect"]
+
+            rows.append(
+                {
+                    "experiment": experiment,
+                    "table_index": table_index,
+                    "analysis_family": VARIABLE_FAMILIES.get(
+                        dependent_variable,
+                        "unknown",
+                    ),
+                    "variable": dependent_variable,
+                    "effect": effect,
+                    "numerator_df": to_float(dataframe.iat[source_row, 1]),
+                    "denominator_df": to_float(dataframe.iat[source_row, 2]),
+                    "f": to_float(dataframe.iat[source_row, 3]),
+                    "p": to_float(dataframe.iat[source_row, 4]),
+                }
+            )
+
+    return rows
+
+
+def parse_tmt_estimated_marginal_means(experiment, dataframe):
+    rows = []
+    title_rows = find_title_rows(dataframe, "Estimated Marginal Means")
+
+    for table_index, title_row in enumerate(title_rows, start=1):
+        row_index = title_row + 5
+        current_group = ""
+        data_rows = []
+        dependent_variable = ""
+
+        while row_index < len(dataframe):
+            group = cell_text(dataframe.iat[row_index, 0])
+            tmt_variant = cell_text(dataframe.iat[row_index, 1])
+
+            if group.startswith("a. Dependent Variable"):
+                dependent_variable = parse_dependent_variable(group)
+                break
+
+            if is_blank(group) and is_blank(tmt_variant):
+                break
+
+            if group:
+                current_group = group
+
+            if tmt_variant in ["tmt1", "tmt2"]:
+                data_rows.append(
+                    {
+                        "row_index": row_index,
+                        "group": current_group,
+                        "tmt_variant": tmt_variant,
+                    }
+                )
+
+            row_index += 1
+
+        if not dependent_variable:
+            for search_index in range(row_index, min(row_index + 8, len(dataframe))):
+                text = cell_text(dataframe.iat[search_index, 0])
+
+                if text.startswith("a. Dependent Variable"):
+                    dependent_variable = parse_dependent_variable(text)
+                    break
+
+        for data_row in data_rows:
+            source_row = data_row["row_index"]
+
+            rows.append(
+                {
+                    "experiment": experiment,
+                    "table_index": table_index,
+                    "analysis_family": VARIABLE_FAMILIES.get(
+                        dependent_variable,
+                        "unknown",
+                    ),
+                    "variable": dependent_variable,
+                    "group": data_row["group"],
+                    "tmt_variant": data_row["tmt_variant"],
+                    "mean": to_float(dataframe.iat[source_row, 2]),
+                    "std_error": to_float(dataframe.iat[source_row, 3]),
+                    "df": to_float(dataframe.iat[source_row, 4]),
+                    "ci95_lower": to_float(dataframe.iat[source_row, 5]),
+                    "ci95_upper": to_float(dataframe.iat[source_row, 6]),
+                }
+            )
+
+    return rows
+
+
+def add_reporting_choice(test_table):
     if test_table.empty:
         return test_table
 
@@ -276,14 +436,28 @@ def add_reporting_choice(test_table):
     return output
 
 
+def add_tmt_reporting_choice(fixed_effects_table):
+    if fixed_effects_table.empty:
+        return fixed_effects_table
+
+    output = fixed_effects_table.copy()
+    output["preferred_for_reporting"] = output["effect"].isin(
+        TMT_REPORTABLE_EFFECTS
+    ).astype(int)
+
+    return output
+
+
 def extract_one_experiment(experiment, path):
     if not path.exists():
-        return [], [], {
+        return [], [], [], [], {
             "experiment": experiment,
             "status": "skipped_missing_xlsx",
             "xlsx_file": str(path),
             "group_statistics_rows": 0,
             "independent_samples_rows": 0,
+            "tmt_mixed_fixed_effects_rows": 0,
+            "tmt_emmeans_rows": 0,
             "details": "",
         }
 
@@ -299,20 +473,46 @@ def extract_one_experiment(experiment, path):
         dataframe=dataframe,
     )
 
-    status = "created"
+    if experiment == "tmt":
+        mixed_rows = parse_tmt_mixed_fixed_effects(
+            experiment=experiment,
+            dataframe=dataframe,
+        )
 
+        emmeans_rows = parse_tmt_estimated_marginal_means(
+            experiment=experiment,
+            dataframe=dataframe,
+        )
+    else:
+        mixed_rows = []
+        emmeans_rows = []
+
+    status = "created"
     details = ""
 
-    if len(group_rows) == 0:
-        status = "error_no_group_statistics"
-        details = "Group Statistics table was not found or could not be parsed."
+    if experiment == "tmt":
+        if len(mixed_rows) == 0:
+            status = "error_no_tmt_mixed_fixed_effects"
+            details = "TMT Type III Tests of Fixed Effects table could not be parsed."
 
-    if len(test_rows) == 0:
-        status = "error_no_independent_samples_tests"
-        details = (
-            details
-            + " Independent Samples Test table was not found or could not be parsed."
-        ).strip()
+        if len(emmeans_rows) == 0:
+            status = "error_no_tmt_emmeans"
+            details = (
+                details
+                + " TMT Estimated Marginal Means table could not be parsed."
+            ).strip()
+
+    else:
+        if len(group_rows) == 0:
+            status = "error_no_group_statistics"
+            details = "Group Statistics table was not found or could not be parsed."
+
+        if len(test_rows) == 0:
+            status = "error_no_independent_samples_tests"
+            details = (
+                details
+                + " Independent Samples Test table was not found or could not be parsed."
+            ).strip()
 
     manifest_row = {
         "experiment": experiment,
@@ -320,28 +520,41 @@ def extract_one_experiment(experiment, path):
         "xlsx_file": str(path),
         "group_statistics_rows": len(group_rows),
         "independent_samples_rows": len(test_rows),
+        "tmt_mixed_fixed_effects_rows": len(mixed_rows),
+        "tmt_emmeans_rows": len(emmeans_rows),
         "details": details,
     }
 
-    return group_rows, test_rows, manifest_row
+    return group_rows, test_rows, mixed_rows, emmeans_rows, manifest_row
 
 
 def main():
     all_group_rows = []
     all_test_rows = []
+    all_mixed_rows = []
+    all_emmeans_rows = []
     manifest_rows = []
 
     for experiment, path in SPSS_OUTPUT_FILES.items():
-        group_rows, test_rows, manifest_row = extract_one_experiment(
+        (
+            group_rows,
+            test_rows,
+            mixed_rows,
+            emmeans_rows,
+            manifest_row,
+        ) = extract_one_experiment(
             experiment=experiment,
             path=path,
         )
 
         all_group_rows.extend(group_rows)
         all_test_rows.extend(test_rows)
+        all_mixed_rows.extend(mixed_rows)
+        all_emmeans_rows.extend(emmeans_rows)
         manifest_rows.append(manifest_row)
 
     group_statistics = pd.DataFrame(all_group_rows)
+
     independent_tests = pd.DataFrame(all_test_rows)
     independent_tests = add_reporting_choice(independent_tests)
 
@@ -352,16 +565,36 @@ def main():
             independent_tests["preferred_for_reporting"] == 1
         ].copy()
 
+    tmt_mixed_fixed_effects = pd.DataFrame(all_mixed_rows)
+    tmt_mixed_fixed_effects = add_tmt_reporting_choice(
+        tmt_mixed_fixed_effects
+    )
+
+    if tmt_mixed_fixed_effects.empty:
+        tmt_reporting = pd.DataFrame()
+    else:
+        tmt_reporting = tmt_mixed_fixed_effects[
+            tmt_mixed_fixed_effects["preferred_for_reporting"] == 1
+        ].copy()
+
+    tmt_emmeans = pd.DataFrame(all_emmeans_rows)
+
     manifest = pd.DataFrame(manifest_rows)
 
     group_statistics_path = OUTPUT_DIR / "group_statistics.csv"
     independent_tests_path = OUTPUT_DIR / "independent_samples_tests.csv"
     reporting_tests_path = OUTPUT_DIR / "independent_samples_tests_reporting.csv"
+    tmt_fixed_path = OUTPUT_DIR / "tmt_mixed_fixed_effects.csv"
+    tmt_reporting_path = OUTPUT_DIR / "tmt_mixed_fixed_effects_reporting.csv"
+    tmt_emmeans_path = OUTPUT_DIR / "tmt_estimated_marginal_means.csv"
     manifest_path = QC_OUTPUT_DIR / "spss_result_extraction_manifest.csv"
 
     write_csv(group_statistics, group_statistics_path)
     write_csv(independent_tests, independent_tests_path)
     write_csv(reporting_tests, reporting_tests_path)
+    write_csv(tmt_mixed_fixed_effects, tmt_fixed_path)
+    write_csv(tmt_reporting, tmt_reporting_path)
+    write_csv(tmt_emmeans, tmt_emmeans_path)
     write_csv(manifest, manifest_path)
 
     print("SPSS sonuç ayıklama tamamlandı.")
@@ -371,7 +604,10 @@ def main():
     print("")
     print(f"Group statistics: {group_statistics_path}")
     print(f"Independent samples tests: {independent_tests_path}")
-    print(f"Reporting rows: {reporting_tests_path}")
+    print(f"Independent reporting rows: {reporting_tests_path}")
+    print(f"TMT mixed fixed effects: {tmt_fixed_path}")
+    print(f"TMT mixed reporting rows: {tmt_reporting_path}")
+    print(f"TMT estimated marginal means: {tmt_emmeans_path}")
     print(f"Manifest file: {manifest_path}")
 
     errors = manifest[
