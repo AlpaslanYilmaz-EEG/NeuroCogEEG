@@ -27,7 +27,7 @@ events:
   task_start: 48
   correct_click: 49
   error_click: 50
-  task_end: 51
+  
 
 preprocessing:
   filtering:
@@ -64,7 +64,7 @@ behavior:
     end_events:
       - correct_click
       - error_click
-      - task_end
+      
 
   clicks:
     correct_event: correct_click
@@ -81,7 +81,7 @@ continuous_eeg:
     end_events:
       - correct_click
       - error_click
-      - task_end
+    
 
 psd:
   total_band:

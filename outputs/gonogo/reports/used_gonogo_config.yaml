@@ -34,15 +34,22 @@ device:
     fallback_index: 25
     scale_factor: 1000000
     zero_value: 0
+    duplicate_window_ms: 200
 experiment:
   experiment:
     name: gonogo
     description: Go/No-Go task EEG analysis
   events:
-    stimulus: 48
-    correct_response: 49
-    error_response: 50
-    missed_response: 51
+    ready: 48
+    set: 49
+    go_stimulus: 50
+    nogo_stimulus: 51
+    correct_response: 52
+    false_alarm: 53
+    missed_go_response: 54
+    stimulus: 51
+    error_response: 53
+    missed_response: 54
   preprocessing:
     filtering:
       ica:
@@ -85,13 +92,17 @@ experiment:
         end: -0.6
   behavior:
     reaction_time:
-      start_event: stimulus
+      start_event: go_stimulus
       end_event: correct_response
       min_ms: 100
       max_ms: 1500
     accuracy:
-      correct_event: correct_response
-      total_event: stimulus
+      formula: go_nogo_balanced
+      go_stimulus_event: go_stimulus
+      nogo_stimulus_event: nogo_stimulus
+      correct_go_response_event: correct_response
+      false_alarm_event: false_alarm
+      missed_go_response_event: missed_go_response
   erp_components:
     n2:
       condition: stimulus

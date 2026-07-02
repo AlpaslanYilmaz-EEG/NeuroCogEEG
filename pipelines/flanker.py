@@ -201,19 +201,24 @@ def compute_behavioral_results(
         prefix="correct_rt",
     )
 
-    accuracy_config = behavior_config["accuracy"]
-
     correct_code = get_event_code(
         events_config=events_config,
-        event_name=accuracy_config["correct_event"],
+        event_name="correct_response",
     )
-    total_code = get_event_code(
+    error_code = get_event_code(
         events_config=events_config,
-        event_name=accuracy_config["total_event"],
+        event_name="error_response",
+    )
+    missed_code = get_event_code(
+        events_config=events_config,
+        event_name="missed_response",
     )
 
     correct_count = int(np.sum(events[:, 2] == correct_code))
-    total_count = int(np.sum(events[:, 2] == total_code))
+    error_count = int(np.sum(events[:, 2] == error_code))
+    missed_count = int(np.sum(events[:, 2] == missed_code))
+
+    total_count = correct_count + error_count + missed_count
 
     accuracy = compute_accuracy_percent(
         correct_count=correct_count,

@@ -15,6 +15,115 @@ from typing import Any
 import mne
 import numpy as np
 
+def deduplicate_close_repeated_events(
+    events: np.ndarray,
+    sfreq: float,
+    duplicate_window_ms: float,
+) -> tuple[np.ndarray, int]:
+    """
+    Remove repeated markers with the same event code within a short time window.
+
+    If the same event code occurs repeatedly within duplicate_window_ms,
+    the first marker is kept and later repetitions are ignored.
+
+    Different event codes are not merged, even if they occur within the same
+    time window.
+
+    Parameters
+    ----------
+    events:
+        MNE events array with shape (n_events, 3).
+
+    sfreq:
+        Sampling frequency in Hz.
+
+    duplicate_window_ms:
+        Duplicate detection window in milliseconds.
+
+    Returns
+    -------
+    tuple[np.ndarray, int]
+        Deduplicated events array and number of dropped duplicate events.
+    """
+    if events is None or len(events) == 0:
+        return np.empty((0, 3), dtype=int), 0
+
+    if duplicate_window_ms <= 0:
+        return events.astype(int), 0
+
+    duplicate_window_samples = int(
+        round((duplicate_window_ms / 1000.0) * float(sfreq))
+    )
+
+    kept_events = []
+    dropped_count = 0
+    last_kept_sample_by_code: dict[int, int] = {}
+
+    for event in events:
+        sample = int(event[0])
+        event_code = int(event[2])
+
+        last_sample = last_kept_sample_by_code.get(event_code)
+
+        if last_sample is not None:
+            if sample - last_sample <= duplicate_window_samples:
+                dropped_count += 1
+                continue
+
+        kept_events.append(event)
+        last_kept_sample_by_code[event_code] = sample
+
+    if not kept_events:
+        return np.empty((0, 3), dtype=int), dropped_count
+
+    return np.asarray(kept_events, dtype=int), dropped_count
+
+def deduplicate_close_repeated_events(
+    events: np.ndarray,
+    sfreq: float,
+    duplicate_window_ms: float,
+) -> tuple[np.ndarray, int]:
+    """
+    Remove repeated markers with the same event code within a short time window.
+
+    If the same event code occurs repeatedly within duplicate_window_ms,
+    the first marker is kept and later repetitions are ignored.
+
+    Different event codes are not merged, even if they occur within the same
+    time window.
+    """
+    if events is None or len(events) == 0:
+        return np.empty((0, 3), dtype=int), 0
+
+    if duplicate_window_ms <= 0:
+        return events.astype(int), 0
+
+    duplicate_window_samples = int(
+        round((duplicate_window_ms / 1000.0) * float(sfreq))
+    )
+
+    kept_events = []
+    dropped_count = 0
+    last_kept_sample_by_code: dict[int, int] = {}
+
+    for event in events:
+        sample = int(event[0])
+        event_code = int(event[2])
+
+        last_sample = last_kept_sample_by_code.get(event_code)
+
+        if last_sample is not None:
+            if sample - last_sample <= duplicate_window_samples:
+                dropped_count += 1
+                continue
+
+        kept_events.append(event)
+        last_kept_sample_by_code[event_code] = sample
+
+    if not kept_events:
+        return np.empty((0, 3), dtype=int), dropped_count
+
+    return np.asarray(kept_events, dtype=int), dropped_count
 
 def extract_events_from_marker_channel(
     raw: mne.io.BaseRaw,
@@ -24,28 +133,18 @@ def extract_events_from_marker_channel(
     """
     Extract MNE-compatible events from a marker channel.
 
-    Parameters
-    ----------
-    raw:
-        Raw object containing EEG channels and the marker channel.
+    Repeated markers are deduplicated centrally. If the same marker code is
+    emitted more than once within duplicate_window_ms, the first marker is kept
+    and later repetitions are ignored.
 
-    marker_channel:
-        Name of the marker channel.
-
-    marker_config:
-        Marker configuration from device YAML. Expected keys include
-        ``scale_factor`` and ``zero_value``.
-
-    Returns
-    -------
-    np.ndarray
-        MNE events array with shape ``(n_events, 3)``.
+    Different event codes are not merged.
     """
     if marker_channel not in raw.ch_names:
         raise ValueError(f"Marker channel not found in raw: {marker_channel}")
 
     scale_factor = marker_config.get("scale_factor", 1)
     zero_value = marker_config.get("zero_value", 0)
+    duplicate_window_ms = marker_config.get("duplicate_window_ms", 100)
 
     marker_data = raw.copy().pick(
         picks=[marker_channel],
@@ -66,9 +165,15 @@ def extract_events_from_marker_channel(
     )
 
     events = events[events[:, 2] != zero_value]
+    events = events.astype(int)
+
+    events, _dropped_duplicate_count = deduplicate_close_repeated_events(
+        events=events,
+        sfreq=float(raw.info["sfreq"]),
+        duplicate_window_ms=float(duplicate_window_ms),
+    )
 
     return events.astype(int)
-
 
 def make_event_id(events_config: dict[str, int]) -> dict[str, int]:
     """

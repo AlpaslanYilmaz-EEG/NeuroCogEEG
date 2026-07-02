@@ -175,22 +175,34 @@ def compute_behavioral_results(
         prefix="correct_rt",
     )
 
-    accuracy_config = behavior_config["accuracy"]
-
-    correct_code = get_event_code(
+    go_stimulus_code = get_event_code(
         events_config=events_config,
-        event_name=accuracy_config["correct_event"],
+        event_name="go_stimulus",
     )
-    total_code = get_event_code(
+    nogo_stimulus_code = get_event_code(
         events_config=events_config,
-        event_name=accuracy_config["total_event"],
+        event_name="nogo_stimulus",
+    )
+    correct_response_code = get_event_code(
+        events_config=events_config,
+        event_name="correct_response",
+    )
+    false_alarm_code = get_event_code(
+        events_config=events_config,
+        event_name="false_alarm",
     )
 
-    correct_count = int(np.sum(events[:, 2] == correct_code))
-    total_count = int(np.sum(events[:, 2] == total_code))
+    go_count = int(np.sum(events[:, 2] == go_stimulus_code))
+    nogo_count = int(np.sum(events[:, 2] == nogo_stimulus_code))
+    correct_go_count = int(np.sum(events[:, 2] == correct_response_code))
+    false_alarm_count = int(np.sum(events[:, 2] == false_alarm_code))
+
+    correct_nogo_count = max(nogo_count - false_alarm_count, 0)
+    correct_total_count = correct_go_count + correct_nogo_count
+    total_count = go_count + nogo_count
 
     accuracy = compute_accuracy_percent(
-        correct_count=correct_count,
+        correct_count=correct_total_count,
         total_count=total_count,
     )
 
@@ -207,40 +219,19 @@ def create_stimulus_locked_correct_epochs(
     experiment_config: dict[str, Any],
 ):
     """
-    Create stimulus-locked epochs for stimuli followed by correct responses.
+    Create stimulus-locked epochs for No-Go stimuli.
 
-    Parameters
-    ----------
-    raw_clean:
-        Preprocessed raw object.
-
-    events:
-        MNE events array.
-
-    experiment_config:
-        Loaded gonogo.yaml configuration.
-
-    Returns
-    -------
-    mne.Epochs
-        Stimulus-locked epochs.
+    In the Go/No-Go task, stimulus-locked N2/P3 analyses are based on
+    no-go stimuli, because these are the inhibitory-control events.
     """
     events_config = experiment_config["events"]
 
-    stimulus_code = get_event_code(
+    nogo_stimulus_code = get_event_code(
         events_config=events_config,
-        event_name="stimulus",
-    )
-    correct_code = get_event_code(
-        events_config=events_config,
-        event_name="correct_response",
+        event_name="nogo_stimulus",
     )
 
-    correct_stimulus_events = filter_event_sequence(
-        events=events,
-        first_event_code=stimulus_code,
-        next_event_code=correct_code,
-    )
+    nogo_events = events[events[:, 2] == nogo_stimulus_code].copy()
 
     epoch_config = experiment_config["epochs"]["stimulus_locked"]
     reject_criteria = get_reject_criteria(
@@ -249,13 +240,12 @@ def create_stimulus_locked_correct_epochs(
 
     return create_epochs(
         raw=raw_clean,
-        events=correct_stimulus_events,
-        event_id={"stimulus": stimulus_code},
+        events=nogo_events,
+        event_id={"stimulus": nogo_stimulus_code},
         epoch_config=epoch_config,
         reject_criteria=reject_criteria,
         picks="eeg",
     )
-
 
 def create_response_locked_epochs(
     raw_clean,
@@ -287,9 +277,9 @@ def create_response_locked_epochs(
         events_config=events_config,
         event_name="correct_response",
     )
-    error_code = get_event_code(
+    false_alarm_code = get_event_code(
         events_config=events_config,
-        event_name="error_response",
+        event_name="false_alarm",
     )
 
     epoch_config = experiment_config["epochs"]["response_locked"]
@@ -302,7 +292,7 @@ def create_response_locked_epochs(
         events=events,
         event_id={
             "correct_response": correct_code,
-            "error_response": error_code,
+            "error_response": false_alarm_code,
         },
         epoch_config=epoch_config,
         reject_criteria=reject_criteria,

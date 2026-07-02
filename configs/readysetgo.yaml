@@ -13,8 +13,9 @@ experiment:
 events:
   ready: 48
   set: 49
-  go_response: 50
-  missed_response: 51
+  go: 50
+  go_response: 52
+  missed_response: 54
 
 preprocessing:
   filtering:
@@ -72,14 +73,14 @@ epochs:
 
 behavior:
   response_time:
-    start_event: set
+    start_event: go
     end_event: go_response
     min_ms: 100
     max_ms: 3000
 
   accuracy:
     correct_event: go_response
-    total_event: set
+    total_event: go
 
 cnv:
   condition: set

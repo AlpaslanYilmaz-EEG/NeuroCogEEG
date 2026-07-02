@@ -34,6 +34,7 @@ device:
     fallback_index: 25
     scale_factor: 1000000
     zero_value: 0
+    duplicate_window_ms: 200
 experiment:
   experiment:
     name: flanker
@@ -91,7 +92,10 @@ experiment:
       max_ms: 1500
     accuracy:
       correct_event: correct_response
-      total_event: stimulus
+      total_events:
+      - correct_response
+      - error_response
+      - missed_response
   erp_components:
     n2:
       condition: stimulus

@@ -78,7 +78,10 @@ behavior:
 
   accuracy:
     correct_event: correct_response
-    total_event: stimulus
+    total_events:
+      - correct_response
+      - error_response
+      - missed_response
 
 erp_components:
   n2:

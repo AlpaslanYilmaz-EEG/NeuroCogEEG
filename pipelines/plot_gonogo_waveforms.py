@@ -47,22 +47,17 @@ EXPERIMENT = "gonogo"
 
 
 def create_stimulus_locked_correct_epochs(raw_clean, events, experiment_config):
+    """
+    Create stimulus-locked epochs for No-Go stimuli.
+    """
     events_config = experiment_config["events"]
 
-    stimulus_code = get_event_code(
+    nogo_stimulus_code = get_event_code(
         events_config=events_config,
-        event_name="stimulus",
-    )
-    correct_code = get_event_code(
-        events_config=events_config,
-        event_name="correct_response",
+        event_name="nogo_stimulus",
     )
 
-    correct_stimulus_events = filter_event_sequence(
-        events=events,
-        first_event_code=stimulus_code,
-        next_event_code=correct_code,
-    )
+    nogo_events = events[events[:, 2] == nogo_stimulus_code].copy()
 
     epoch_config = experiment_config["epochs"]["stimulus_locked"]
     reject_criteria = get_reject_criteria(
@@ -71,8 +66,8 @@ def create_stimulus_locked_correct_epochs(raw_clean, events, experiment_config):
 
     return create_epochs(
         raw=raw_clean,
-        events=correct_stimulus_events,
-        event_id={"stimulus": stimulus_code},
+        events=nogo_events,
+        event_id={"stimulus": nogo_stimulus_code},
         epoch_config=epoch_config,
         reject_criteria=reject_criteria,
         picks="eeg",
@@ -86,9 +81,9 @@ def create_response_locked_epochs(raw_clean, events, experiment_config):
         events_config=events_config,
         event_name="correct_response",
     )
-    error_code = get_event_code(
+    false_alarm_code = get_event_code(
         events_config=events_config,
-        event_name="error_response",
+        event_name="false_alarm",
     )
 
     epoch_config = experiment_config["epochs"]["response_locked"]
@@ -101,7 +96,7 @@ def create_response_locked_epochs(raw_clean, events, experiment_config):
         events=events,
         event_id={
             "correct_response": correct_code,
-            "error_response": error_code,
+            "error_response": false_alarm_code,
         },
         epoch_config=epoch_config,
         reject_criteria=reject_criteria,

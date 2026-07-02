@@ -34,6 +34,7 @@ device:
     fallback_index: 25
     scale_factor: 1000000
     zero_value: 0
+    duplicate_window_ms: 200
 experiment:
   experiment:
     name: tmt
@@ -49,7 +50,6 @@ experiment:
     task_start: 48
     correct_click: 49
     error_click: 50
-    task_end: 51
   preprocessing:
     filtering:
       ica:
@@ -79,7 +79,6 @@ experiment:
       end_events:
       - correct_click
       - error_click
-      - task_end
     clicks:
       correct_event: correct_click
       error_event: error_click
@@ -93,7 +92,6 @@ experiment:
       end_events:
       - correct_click
       - error_click
-      - task_end
   psd:
     total_band:
       fmin: 1.0

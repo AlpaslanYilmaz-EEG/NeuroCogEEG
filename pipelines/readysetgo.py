@@ -174,23 +174,21 @@ def compute_behavioral_results(
         prefix="response_time",
     )
 
-    accuracy_config = behavior_config["accuracy"]
-
-    correct_code = get_event_code(
+    go_code = get_event_code(
         events_config=events_config,
-        event_name=accuracy_config["correct_event"],
+        event_name="go",
     )
-    total_code = get_event_code(
+    go_response_code = get_event_code(
         events_config=events_config,
-        event_name=accuracy_config["total_event"],
+        event_name="go_response",
     )
 
-    correct_count = int(np.sum(events[:, 2] == correct_code))
-    total_count = int(np.sum(events[:, 2] == total_code))
+    go_count = int(np.sum(events[:, 2] == go_code))
+    go_response_count = int(np.sum(events[:, 2] == go_response_code))
 
     accuracy = compute_accuracy_percent(
-        correct_count=correct_count,
-        total_count=total_count,
+        correct_count=go_response_count,
+        total_count=go_count,
     )
 
     return {
