@@ -241,3 +241,54 @@ Runtime status:
 Current status:
 
 The Python-generated SPSS syntax files are structurally valid and executable in SPSS.
+
+---
+
+## Post-SPSS Result Extraction Checkpoint
+
+A post-SPSS result extraction workflow was added.
+
+Added scripts:
+
+- `pipelines/extract_spss_results.py`
+- `pipelines/generate_report_tables.py`
+- `pipelines/run_post_spss_results.py`
+
+Purpose:
+
+The workflow starts after SPSS output files are exported to Excel.
+
+Required input files:
+
+- `outputs/statistics/spss_output/flanker_analysis_output.xlsx`
+- `outputs/statistics/spss_output/gonogo_analysis_output.xlsx`
+- `outputs/statistics/spss_output/readysetgo_analysis_output.xlsx`
+- `outputs/statistics/spss_output/tmt_analysis_output.xlsx`
+
+Completed functionality:
+
+- Extracts between-subject SPSS results for Flanker, Go/No-Go, and ReadySetGo.
+- Extracts TMT MIXED model fixed effects.
+- Extracts TMT estimated marginal means.
+- Applies Levene-based reporting row selection for independent-samples tests.
+- Produces report-ready statistical tables.
+
+Generated report tables:
+
+- `outputs/statistics/report_tables/between_subject_results_table.csv`
+- `outputs/statistics/report_tables/tmt_mixed_fixed_effects_table.csv`
+- `outputs/statistics/report_tables/tmt_estimated_marginal_means_table.csv`
+
+Validation status:
+
+- Flanker / Go-NoGo / ReadySetGo reporting rows: 18
+- TMT fixed-effect reporting rows: 30
+- TMT estimated marginal means rows: 40
+- `pipelines/run_post_spss_results.py`: PASS
+
+Current status:
+
+The post-SPSS workflow can be run with:
+
+```bash
+python pipelines/run_post_spss_results.py
