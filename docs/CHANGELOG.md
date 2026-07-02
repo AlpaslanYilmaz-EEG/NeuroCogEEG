@@ -218,3 +218,26 @@ The complete NeuroCogEEG workflow now runs from raw EDF files to validated analy
 ```bash
 python pipelines/run_full_analysis.py
 
+---
+
+## SPSS Runtime Checkpoint
+
+Generated SPSS syntax files were tested in IBM SPSS Statistics.
+
+Tested syntax files:
+
+- `flanker_analysis.sps`
+- `gonogo_analysis.sps`
+- `readysetgo_analysis.sps`
+- `tmt_analysis.sps`
+
+Runtime status:
+
+- All syntax files were opened as SPSS syntax files.
+- All syntax files were executed in SPSS.
+- SPSS output files were generated.
+- No `Error` messages were observed in the SPSS output files.
+
+Current status:
+
+The Python-generated SPSS syntax files are structurally valid and executable in SPSS.
