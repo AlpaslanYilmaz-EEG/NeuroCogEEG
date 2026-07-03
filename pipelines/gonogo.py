@@ -358,23 +358,13 @@ def compute_response_locked_results(
     """
     Compute RP and PMP from response-locked epochs.
 
-    Parameters
-    ----------
-    response_epochs:
-        Response-locked epochs.
-
-    experiment_config:
-        Loaded gonogo.yaml configuration.
-
-    Returns
-    -------
-    dict[str, Any]
-        RP and PMP results.
+    Main ROI results are preserved. Additional sensitivity ROI results are
+    added when defined in gonogo.yaml.
     """
     rp_config = experiment_config["response_locked"]["rp"]
     pmp_config = experiment_config["response_locked"]["pmp"]
 
-    return compute_response_locked_metrics_from_epochs(
+    rp_results = compute_response_locked_metrics_from_epochs(
         epochs=response_epochs,
         roi_channels=rp_config["roi"],
         rp_window_config=rp_config["window"],
@@ -382,6 +372,24 @@ def compute_response_locked_results(
         condition=rp_config["condition"],
     )
 
+    sensitivity_results = {}
+
+    for roi_name, roi_channels in rp_config.get("sensitivity_rois", {}).items():
+        roi_results = compute_response_locked_metrics_from_epochs(
+            epochs=response_epochs,
+            roi_channels=roi_channels,
+            rp_window_config=rp_config["window"],
+            pmp_window_config=pmp_config["window"],
+            condition=rp_config["condition"],
+        )
+
+        for metric_name, metric_value in roi_results.items():
+            sensitivity_results[f"{roi_name}_{metric_name}"] = metric_value
+
+    return {
+        **rp_results,
+        **sensitivity_results,
+    }
 
 def compute_connectivity_results(
     stimulus_epochs,

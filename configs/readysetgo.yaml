@@ -92,6 +92,10 @@ cnv:
     - F4
     - FC5
     - FC6
+  sensitivity_rois:
+    left_frontocentral:
+      - F3
+      - FC5    
   method: mean
 
 response_locked:
@@ -105,6 +109,10 @@ response_locked:
       - F4
       - FC5
       - FC6
+    sensitivity_rois:
+      left_frontocentral:
+        - F3
+        - FC5    
     peak_polarity: negative
 
   pmp:
@@ -117,6 +125,11 @@ response_locked:
       - F4
       - FC5
       - FC6
+    sensitivity_rois:
+      left_frontocentral:
+        - F3
+        - FC5    
+
     peak_polarity: positive
 
 connectivity:

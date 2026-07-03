@@ -297,22 +297,12 @@ def compute_cnv_results(
     """
     Compute CNV from set-locked epochs.
 
-    Parameters
-    ----------
-    set_epochs:
-        Set-locked epochs.
-
-    experiment_config:
-        Loaded readysetgo.yaml configuration.
-
-    Returns
-    -------
-    dict[str, float]
-        CNV result dictionary.
+    Main ROI results are preserved. Additional sensitivity ROI results are
+    added when defined in readysetgo.yaml.
     """
     cnv_config = experiment_config["cnv"]
 
-    return compute_component_from_epochs(
+    cnv_results = compute_component_from_epochs(
         epochs=set_epochs,
         condition=cnv_config["condition"],
         component_name="cnv",
@@ -322,6 +312,26 @@ def compute_cnv_results(
         polarity=cnv_config.get("polarity"),
     )
 
+    sensitivity_results = {}
+
+    for roi_name, roi_channels in cnv_config.get("sensitivity_rois", {}).items():
+        roi_results = compute_component_from_epochs(
+            epochs=set_epochs,
+            condition=cnv_config["condition"],
+            component_name="cnv",
+            window_config=cnv_config["window"],
+            roi_channels=roi_channels,
+            method=cnv_config["method"],
+            polarity=cnv_config.get("polarity"),
+        )
+
+        for metric_name, metric_value in roi_results.items():
+            sensitivity_results[f"{roi_name}_{metric_name}"] = metric_value
+
+    return {
+        **cnv_results,
+        **sensitivity_results,
+    }
 
 def compute_response_locked_results(
     response_epochs,
@@ -330,23 +340,13 @@ def compute_response_locked_results(
     """
     Compute RP and PMP from response-locked epochs.
 
-    Parameters
-    ----------
-    response_epochs:
-        Response-locked epochs.
-
-    experiment_config:
-        Loaded readysetgo.yaml configuration.
-
-    Returns
-    -------
-    dict[str, Any]
-        RP and PMP results.
+    Main ROI results are preserved. Additional sensitivity ROI results are
+    added when defined in readysetgo.yaml.
     """
     rp_config = experiment_config["response_locked"]["rp"]
     pmp_config = experiment_config["response_locked"]["pmp"]
 
-    return compute_response_locked_metrics_from_epochs(
+    rp_results = compute_response_locked_metrics_from_epochs(
         epochs=response_epochs,
         roi_channels=rp_config["roi"],
         rp_window_config=rp_config["window"],
@@ -354,7 +354,24 @@ def compute_response_locked_results(
         condition=rp_config["condition"],
     )
 
+    sensitivity_results = {}
 
+    for roi_name, roi_channels in rp_config.get("sensitivity_rois", {}).items():
+        roi_results = compute_response_locked_metrics_from_epochs(
+            epochs=response_epochs,
+            roi_channels=roi_channels,
+            rp_window_config=rp_config["window"],
+            pmp_window_config=pmp_config["window"],
+            condition=rp_config["condition"],
+        )
+
+        for metric_name, metric_value in roi_results.items():
+            sensitivity_results[f"{roi_name}_{metric_name}"] = metric_value
+
+    return {
+        **rp_results,
+        **sensitivity_results,
+    }
 def compute_connectivity_results(
     set_epochs,
     experiment_config: dict[str, Any],

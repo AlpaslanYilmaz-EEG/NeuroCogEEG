@@ -100,6 +100,10 @@ erp_components:
       - F4
       - FC5
       - FC6
+    sensitivity_rois:
+      left_frontocentral:
+        - F3
+        - FC5      
     method: peak
     polarity: negative
 
@@ -113,6 +117,10 @@ erp_components:
       - P8
       - O1
       - O2
+    sensitivity_rois:
+      left_frontocentral:
+        - F3
+        - FC5
     method: peak
     polarity: positive
 
@@ -127,6 +135,10 @@ response_locked:
       - F4
       - FC5
       - FC6
+    sensitivity_rois:
+      left_frontocentral:
+        - F3
+        - FC5
     peak_polarity: negative
 
   pmp:
@@ -139,6 +151,10 @@ response_locked:
       - F4
       - FC5
       - FC6
+    sensitivity_rois:
+      left_frontocentral:
+        - F3
+        - FC5
     peak_polarity: positive
 
 connectivity:

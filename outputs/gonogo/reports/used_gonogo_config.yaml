@@ -114,6 +114,10 @@ experiment:
       - F4
       - FC5
       - FC6
+      sensitivity_rois:
+        left_frontocentral:
+        - F3
+        - FC5
       method: peak
       polarity: negative
     p3:
@@ -126,6 +130,10 @@ experiment:
       - P8
       - O1
       - O2
+      sensitivity_rois:
+        left_frontocentral:
+        - F3
+        - FC5
       method: peak
       polarity: positive
   response_locked:
@@ -139,6 +147,10 @@ experiment:
       - F4
       - FC5
       - FC6
+      sensitivity_rois:
+        left_frontocentral:
+        - F3
+        - FC5
       peak_polarity: negative
     pmp:
       condition: correct_response
@@ -150,6 +162,10 @@ experiment:
       - F4
       - FC5
       - FC6
+      sensitivity_rois:
+        left_frontocentral:
+        - F3
+        - FC5
       peak_polarity: positive
   connectivity:
     methods:
