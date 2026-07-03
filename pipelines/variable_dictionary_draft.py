@@ -21,6 +21,26 @@ if str(PROJECT_ROOT) not in sys.path:
 INVENTORY_PATH = PROJECT_ROOT / "outputs" / "qc" / "variable_inventory.csv"
 OUTPUT_PATH = PROJECT_ROOT / "outputs" / "qc" / "variable_dictionary_draft.csv"
 
+def infer_variable_family(column_name, inventory_family):
+    """
+    Reclassify known sensitivity ROI columns that the inventory may initially
+    label as 'other'.
+
+    Sensitivity ROI columns are secondary ROI outcomes and should follow the
+    same SPSS/export logic as their parent component family.
+    """
+    name = column_name.lower()
+
+    if name.startswith("left_frontocentral_cnv_"):
+        return "cnv"
+
+    if (
+        name.startswith("left_frontocentral_rp_")
+        or name.startswith("left_frontocentral_pmp_")
+    ):
+        return "response_locked"
+
+    return inventory_family
 
 def infer_unit(column_name, variable_family):
     name = column_name.lower()
@@ -174,14 +194,14 @@ def infer_missing_allowed(column_name, variable_family):
     if column_name == "ern_amplitude_uv":
         return "yes_if_no_usable_error_epochs"
 
-    if column_name == "cnv_amplitude_uv":
+    if name.endswith("cnv_amplitude_uv"):
         return "yes_if_set_locked_minimum_trials_fail"
 
     if variable_family == "connectivity":
         return "yes_if_minimum_trials_fail"
 
     if variable_family == "response_locked":
-        if name == "rp_trial_count":
+        if name.endswith("rp_trial_count"):
             return "no"
         return "yes_if_minimum_trials_fail"
 
@@ -202,13 +222,13 @@ def infer_missing_reason(column_name, variable_family):
     if column_name == "ern_amplitude_uv":
         return "May be missing when participant has no usable error-response epochs."
 
-    if column_name == "cnv_amplitude_uv":
+    if name.endswith("cnv_amplitude_uv"):
         return "May be missing when set-locked minimum trial criterion is not met."
 
     if variable_family == "connectivity":
         return "May be missing when the epoch set used for connectivity does not meet minimum trial criterion."
 
-    if variable_family == "response_locked" and name != "rp_trial_count":
+    if variable_family == "response_locked" and not name.endswith("rp_trial_count"):
         return "May be missing when response-locked minimum trial criterion is not met."
 
     if variable_family == "processing_error":
@@ -252,7 +272,10 @@ def build_dictionary(inventory):
 
     for _, row in inventory.iterrows():
         column = row["column"]
-        variable_family = row["variable_family"]
+        variable_family = infer_variable_family(
+            column_name=column,
+            inventory_family=row["variable_family"],
+        )
 
         rows.append(
             {

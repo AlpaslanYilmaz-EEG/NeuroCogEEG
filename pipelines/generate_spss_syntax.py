@@ -79,6 +79,14 @@ BETWEEN_SUBJECT_ANALYSES = {
                 "pmp_peak_uv",
             ],
         },
+        {
+            "title": "Flanker left frontocentral RP/PMP sensitivity",
+            "include_flag": "include_rp_pmp",
+            "variables": [
+            "left_frontocentral_rp_mean_uv",
+            "left_frontocentral_pmp_peak_uv",
+            ],
+        },
     ],
     "gonogo": [
         {
@@ -105,6 +113,14 @@ BETWEEN_SUBJECT_ANALYSES = {
                 "pmp_peak_uv",
             ],
         },
+        {
+            "title": "Go/No-Go left frontocentral RP/PMP sensitivity",
+            "include_flag": "include_rp_pmp",
+            "variables": [
+                "left_frontocentral_rp_mean_uv",
+                "left_frontocentral_pmp_peak_uv",
+            ],
+        },
     ],
     "readysetgo": [
         {
@@ -128,6 +144,21 @@ BETWEEN_SUBJECT_ANALYSES = {
             "variables": [
                 "rp_mean_uv",
                 "pmp_peak_uv",
+            ],
+        },
+        {
+            "title": "ReadySetGo left frontocentral CNV sensitivity",
+            "include_flag": "include_cnv",
+            "variables": [
+                "left_frontocentral_cnv_amplitude_uv",
+            ],
+        },
+        {
+            "title": "ReadySetGo left frontocentral RP/PMP sensitivity",
+            "include_flag": "include_rp_pmp",
+            "variables": [
+                "left_frontocentral_rp_mean_uv",
+                "left_frontocentral_pmp_peak_uv",
             ],
         },
     ],
@@ -170,6 +201,17 @@ TMT_MIXED_ANALYSES = [
         "variables": [
             "rp_mean_uv",
             "pmp_peak_uv",
+        ],
+    },
+    {
+        "title": "TMT left frontocentral RP/PMP sensitivity",
+        "include_flags": [
+            "include_rp_pmp",
+            "include_tmt_complete_pair",
+        ],
+        "variables": [
+            "left_frontocentral_rp_mean_uv",
+            "left_frontocentral_pmp_peak_uv",
         ],
     },
 ]

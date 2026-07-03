@@ -268,16 +268,15 @@ def empty_early_late_psd_results(
     return results
 
 
-def empty_rp_results() -> dict[str, float | int]:
+def empty_rp_results(
+    experiment_config: dict[str, Any] | None = None,
+) -> dict[str, float | int]:
     """
     Create NaN-filled RP/PMP result columns.
 
-    Returns
-    -------
-    dict[str, float | int]
-        Empty RP/PMP metrics.
+    Sensitivity ROI columns are also created when they are defined in tmt.yaml.
     """
-    return {
+    results: dict[str, float | int] = {
         "rp_trial_count": 0,
         "rp_mean_uv": np.nan,
         "rp_peak_uv": np.nan,
@@ -288,7 +287,22 @@ def empty_rp_results() -> dict[str, float | int]:
         "pmp_area_uv_s": np.nan,
     }
 
+    if experiment_config is None:
+        return results
 
+    rp_config = experiment_config.get("response_locked", {}).get("rp", {})
+
+    for roi_name in rp_config.get("sensitivity_rois", {}):
+        results[f"{roi_name}_rp_trial_count"] = 0
+        results[f"{roi_name}_rp_mean_uv"] = np.nan
+        results[f"{roi_name}_rp_peak_uv"] = np.nan
+        results[f"{roi_name}_rp_area_uv_s"] = np.nan
+        results[f"{roi_name}_rp_slope_uv_per_s"] = np.nan
+        results[f"{roi_name}_pmp_mean_uv"] = np.nan
+        results[f"{roi_name}_pmp_peak_uv"] = np.nan
+        results[f"{roi_name}_pmp_area_uv_s"] = np.nan
+
+    return results
 def compute_behavioral_results(
     events: np.ndarray,
     sfreq: float,
@@ -711,7 +725,9 @@ def process_subject(
                 experiment_config=experiment_config,
             )
         else:
-            response_results = empty_rp_results()
+            response_results = empty_rp_results(
+                 experiment_config=experiment_config,
+            )
 
         qc_results = merge_qc_summaries(
             qc_event_results,
