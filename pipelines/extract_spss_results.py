@@ -80,6 +80,9 @@ VARIABLE_FAMILIES = {
     "parietal_occipital_theta_relative_percent": "tmt_psd",
     "parietal_occipital_alpha_relative_percent": "tmt_psd",
     "parietal_occipital_beta_relative_percent": "tmt_psd",
+    "left_frontocentral_cnv_amplitude_uv": "cnv_sensitivity",
+    "left_frontocentral_rp_mean_uv": "response_locked_sensitivity",
+    "left_frontocentral_pmp_peak_uv": "response_locked_sensitivity",    
 }
 
 

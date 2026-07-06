@@ -73,6 +73,15 @@ VARIABLE_LABELS = {
     "parietal_occipital_beta_relative_percent": (
         "Parietal-occipital beta relative power (%)"
     ),
+    "left_frontocentral_cnv_amplitude_uv": (
+        "Left frontocentral CNV amplitude (µV)"
+    ),
+    "left_frontocentral_rp_mean_uv": (
+        "Left frontocentral RP mean amplitude (µV)"
+    ),
+    "left_frontocentral_pmp_peak_uv": (
+        "Left frontocentral PMP peak amplitude (µV)"
+    ),    
 }
 
 
