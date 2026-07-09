@@ -288,32 +288,59 @@ def create_stimulus_locked_correct_epochs(
     )
 
 
+
+def filter_events_by_immediate_preceding_context(
+    events: np.ndarray,
+    valid_preceding_codes_by_response_code: dict[int, tuple[int, ...]],
+) -> np.ndarray:
+    """
+    Keep response events only when they are immediately preceded by a valid
+    task stimulus event.
+
+    This prevents stray or repeated response markers from entering
+    response-locked ERN/RP/PMP analyses. Raw EDF marker channels are not
+    modified; filtering is applied only at the derived epoch-selection layer.
+    """
+    selected_events = []
+
+    for index in range(1, len(events)):
+        current_event = events[index]
+        current_code = int(current_event[2])
+
+        if current_code not in valid_preceding_codes_by_response_code:
+            continue
+
+        previous_code = int(events[index - 1][2])
+        valid_previous_codes = valid_preceding_codes_by_response_code[
+            current_code
+        ]
+
+        if previous_code in valid_previous_codes:
+            selected_events.append(current_event)
+
+    if not selected_events:
+        return np.empty((0, 3), dtype=int)
+
+    return np.asarray(selected_events, dtype=int)
+
 def create_response_locked_epochs(
     raw_clean,
     events: np.ndarray,
     experiment_config: dict[str, Any],
 ):
     """
-    Create response-locked epochs for correct and error responses.
+    Create response-locked epochs for valid Flanker stimulus-response pairs.
 
-    Parameters
-    ----------
-    raw_clean:
-        Preprocessed raw object.
-
-    events:
-        MNE events array.
-
-    experiment_config:
-        Loaded flanker.yaml configuration.
-
-    Returns
-    -------
-    mne.Epochs
-        Response-locked epochs.
+    Only response markers immediately preceded by a Flanker stimulus marker
+    are used. This excludes stray or repeated response markers from ERN/RP/PMP
+    analyses without modifying the raw EDF marker channel.
     """
     events_config = experiment_config["events"]
 
+    stimulus_code = get_event_code(
+        events_config=events_config,
+        event_name="stimulus",
+    )
     correct_code = get_event_code(
         events_config=events_config,
         event_name="correct_response",
@@ -323,6 +350,14 @@ def create_response_locked_epochs(
         event_name="error_response",
     )
 
+    valid_response_events = filter_events_by_immediate_preceding_context(
+        events=events,
+        valid_preceding_codes_by_response_code={
+            correct_code: (stimulus_code,),
+            error_code: (stimulus_code,),
+        },
+    )
+
     epoch_config = experiment_config["epochs"]["response_locked"]
     reject_criteria = get_reject_criteria(
         experiment_config["quality_control"]
@@ -330,7 +365,7 @@ def create_response_locked_epochs(
 
     return create_epochs(
         raw=raw_clean,
-        events=events,
+        events=valid_response_events,
         event_id={
             "correct_response": correct_code,
             "error_response": error_code,
