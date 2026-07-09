@@ -72,7 +72,22 @@ experiment:
     iclabel:
       enabled: true
       method: iclabel
-      exclude_non_brain: true
+      exclude_non_brain: false
+      exclude_mode: known_artifacts_only
+      keep_labels:
+      - brain
+      - other
+      exclude_labels:
+      - eye
+      - eye blink
+      - eye movement
+      - muscle
+      - muscle artifact
+      - heart
+      - heart beat
+      - line noise
+      - channel noise
+      min_exclusion_probability: 0.9
   behavior:
     task_duration:
       start_event: task_start

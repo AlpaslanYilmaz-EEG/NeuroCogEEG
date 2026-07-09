@@ -429,13 +429,175 @@ def prepare_ica_raw(
     return raw_for_ica
 
 
+
+def _normalize_iclabel_label(label: Any) -> str:
+    """
+    Normalize an ICLabel class label for robust comparisons.
+
+    ICLabel labels may differ slightly across package versions, for example
+    ``eye blink`` versus ``eye``. This helper lower-cases labels and replaces
+    underscores/hyphens with spaces.
+    """
+    return str(label).strip().lower().replace("_", " ").replace("-", " ")
+
+
+def _component_confidences_from_iclabel(
+    ic_labels: dict[str, Any],
+) -> np.ndarray | None:
+    """
+    Return one confidence value per ICA component when ICLabel provides it.
+
+    ``mne_icalabel.label_components`` commonly returns ``y_pred_proba`` as the
+    probability assigned to each predicted class. Some versions may expose a
+    two-dimensional probability matrix instead. In that case, the maximum class
+    probability is used as the confidence for the predicted label.
+    """
+    probabilities = ic_labels.get("y_pred_proba", None)
+
+    if probabilities is None:
+        return None
+
+    values = np.asarray(probabilities, dtype=float)
+
+    if values.ndim == 1:
+        return values
+
+    if values.ndim == 2:
+        return np.nanmax(values, axis=1)
+
+    return None
+
+
+def select_iclabel_exclusions(
+    ic_labels: dict[str, Any],
+    iclabel_config: dict[str, Any],
+) -> list[int]:
+    """
+    Select ICA components to exclude using a conservative ICLabel policy.
+
+    Supported modes
+    ---------------
+    non_brain
+        Legacy behavior. Exclude every component whose label is not ``brain``.
+
+    known_artifacts_only
+        Conservative behavior. Keep ``brain`` and ``other`` components, and
+        exclude only known artifact labels such as eye, muscle, heart, line
+        noise or channel noise. If ``min_exclusion_probability`` is provided,
+        artifact components are excluded only when their ICLabel confidence is
+        at least that value.
+
+    Parameters
+    ----------
+    ic_labels:
+        Output dictionary returned by ``mne_icalabel.label_components``.
+
+    iclabel_config:
+        ICLabel subsection from the experiment YAML configuration.
+
+    Returns
+    -------
+    list[int]
+        ICA component indices to exclude.
+    """
+    labels = np.asarray(ic_labels.get("labels", []), dtype=object)
+
+    if labels.size == 0:
+        return []
+
+    # Backward compatibility: old YAMLs only had exclude_non_brain.
+    if "exclude_mode" in iclabel_config:
+        exclude_mode = str(iclabel_config["exclude_mode"])
+    elif iclabel_config.get("exclude_non_brain", True):
+        exclude_mode = "non_brain"
+    else:
+        exclude_mode = "none"
+
+    exclude_mode = exclude_mode.strip().lower()
+
+    normalized_labels = np.asarray(
+        [_normalize_iclabel_label(label) for label in labels],
+        dtype=object,
+    )
+
+    if exclude_mode in {"none", "disabled", "off"}:
+        return []
+
+    if exclude_mode == "non_brain":
+        return np.where(normalized_labels != "brain")[0].astype(int).tolist()
+
+    if exclude_mode != "known_artifacts_only":
+        raise ValueError(
+            f"Unsupported ICLabel exclude_mode: {exclude_mode!r}. "
+            "Use 'non_brain', 'known_artifacts_only' or 'none'."
+        )
+
+    default_keep_labels = {
+        "brain",
+        "other",
+    }
+
+    default_exclude_labels = {
+        "eye",
+        "eye blink",
+        "eye movement",
+        "muscle",
+        "muscle artifact",
+        "heart",
+        "heart beat",
+        "line noise",
+        "channel noise",
+    }
+
+    keep_labels = {
+        _normalize_iclabel_label(label)
+        for label in iclabel_config.get("keep_labels", default_keep_labels)
+    }
+
+    exclude_labels = {
+        _normalize_iclabel_label(label)
+        for label in iclabel_config.get(
+            "exclude_labels",
+            sorted(default_exclude_labels),
+        )
+    }
+
+    min_probability = iclabel_config.get("min_exclusion_probability", None)
+    confidences = _component_confidences_from_iclabel(ic_labels)
+
+    excluded: list[int] = []
+
+    for component_index, label in enumerate(normalized_labels):
+        if label in keep_labels:
+            continue
+
+        if label not in exclude_labels:
+            continue
+
+        if min_probability is not None:
+            if confidences is None or component_index >= len(confidences):
+                continue
+
+            confidence = confidences[component_index]
+
+            if not np.isfinite(confidence):
+                continue
+
+            if float(confidence) < float(min_probability):
+                continue
+
+        excluded.append(int(component_index))
+
+    return excluded
+
+
 def run_ica_cleaning(
     raw_eeg: mne.io.BaseRaw,
     raw_for_ica: mne.io.BaseRaw,
     preprocessing_config: dict[str, Any],
 ) -> tuple[mne.io.BaseRaw, mne.preprocessing.ICA, dict[str, Any]]:
     """
-    Run ICA and remove non-brain components using ICLabel.
+    Run ICA and remove selected artifact components using ICLabel.
 
     Parameters
     ----------
@@ -474,9 +636,10 @@ def run_ica_cleaning(
             method=iclabel_config.get("method", "iclabel"),
         )
 
-        if iclabel_config.get("exclude_non_brain", True):
-            labels = np.array(ic_labels["labels"])
-            ica.exclude = np.where(labels != "brain")[0].tolist()
+        ica.exclude = select_iclabel_exclusions(
+            ic_labels=ic_labels,
+            iclabel_config=iclabel_config,
+        )
 
     raw_clean = ica.apply(
         raw_eeg.copy(),
