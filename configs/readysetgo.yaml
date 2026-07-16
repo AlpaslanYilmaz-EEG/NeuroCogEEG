@@ -155,7 +155,7 @@ connectivity:
       target: P8
 quality_control:
   reject_criteria:
-    eeg_uv: 150.0
+    eeg_uv: 175.0
   minimum_trials:
     ready_locked: 10
     set_locked: 10

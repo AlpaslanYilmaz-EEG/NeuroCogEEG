@@ -162,7 +162,40 @@ def validate_minimum_flag_columns(dataframe):
     return issues
 
 
+def get_minimum_flag_for_measure(experiment, column):
+    """Return the QC minimum-trial flag that can explain a missing measure."""
+    response_locked_tokens = (
+        "ern_",
+        "rp_",
+        "pmp_",
+        "left_frontocentral_rp_",
+        "left_frontocentral_pmp_",
+    )
+
+    if column.startswith(response_locked_tokens):
+        return "response_locked_trials_minimum_met"
+
+    if experiment in {"flanker", "gonogo"} and column.startswith(("n2_", "p3_")):
+        return "stimulus_locked_trials_minimum_met"
+
+    if experiment == "readysetgo" and (
+        column.startswith("cnv_")
+        or column.startswith("left_frontocentral_cnv_")
+    ):
+        return "set_locked_trials_minimum_met"
+
+    return None
+
+
 def validate_no_missing_required_columns(experiment, dataframe, dictionary):
+    """Validate missing values while allowing QC-explained analysis missingness.
+
+    A measure marked ``missing_allowed=no`` in the variable dictionary remains
+    required. However, an analysis-derived value may legitimately be missing
+    when its corresponding minimum-trial QC flag is 0. Such rows are reported
+    as WARNING rather than ERROR. Missing values not explained by the QC flag
+    remain ERRORs.
+    """
     issues = []
 
     experiment_dictionary = dictionary[
@@ -180,15 +213,78 @@ def validate_no_missing_required_columns(experiment, dataframe, dictionary):
         if row is None:
             continue
 
-        missing_allowed = str(row["missing_allowed"])
-        missing_count = int(dataframe[column].isna().sum())
+        missing_allowed = str(row["missing_allowed"]).strip().lower()
+        missing_mask = dataframe[column].isna()
+        missing_count = int(missing_mask.sum())
 
-        if missing_allowed == "no" and missing_count > 0:
+        if missing_allowed != "no" or missing_count == 0:
+            continue
+
+        minimum_flag = get_minimum_flag_for_measure(
+            experiment=experiment,
+            column=column,
+        )
+
+        if minimum_flag is None or minimum_flag not in dataframe.columns:
             issues.append(
                 {
+                    "severity": "ERROR",
                     "column": column,
                     "issue": "unexpected_missing_values",
                     "details": f"missing_count={missing_count}",
+                }
+            )
+            continue
+
+        flag_values = pd.to_numeric(
+            dataframe[minimum_flag],
+            errors="coerce",
+        )
+        expected_mask = missing_mask & flag_values.eq(0)
+        unexpected_mask = missing_mask & ~flag_values.eq(0)
+
+        expected_count = int(expected_mask.sum())
+        unexpected_count = int(unexpected_mask.sum())
+
+        if expected_count > 0:
+            subject_details = ""
+            if "subject_id" in dataframe.columns:
+                subjects = dataframe.loc[
+                    expected_mask,
+                    "subject_id",
+                ].astype(str).tolist()
+                subject_details = f", subjects={subjects}"
+
+            issues.append(
+                {
+                    "severity": "WARNING",
+                    "column": column,
+                    "issue": "expected_missing_due_to_minimum_trials",
+                    "details": (
+                        f"missing_count={expected_count}, "
+                        f"minimum_flag={minimum_flag}{subject_details}"
+                    ),
+                }
+            )
+
+        if unexpected_count > 0:
+            subject_details = ""
+            if "subject_id" in dataframe.columns:
+                subjects = dataframe.loc[
+                    unexpected_mask,
+                    "subject_id",
+                ].astype(str).tolist()
+                subject_details = f", subjects={subjects}"
+
+            issues.append(
+                {
+                    "severity": "ERROR",
+                    "column": column,
+                    "issue": "unexpected_missing_values",
+                    "details": (
+                        f"missing_count={unexpected_count}, "
+                        f"minimum_flag={minimum_flag}{subject_details}"
+                    ),
                 }
             )
 
@@ -325,7 +421,6 @@ def validate_one_experiment(experiment, dictionary):
         rows.append(
             {
                 "experiment": experiment,
-                "severity": "ERROR",
                 **issue,
             }
         )
@@ -405,12 +500,25 @@ def main():
     )
 
     errors = validation[validation["severity"] == "ERROR"]
+    warnings = validation[validation["severity"] == "WARNING"]
     info = validation[validation["severity"] == "INFO"]
 
     print("SPSS ana dosya doğrulama raporu")
     print("")
     print("Dosya özetleri:")
     print(info[["experiment", "details"]].to_string(index=False))
+    print("")
+    print(f"WARNING sayısı: {len(warnings)}")
+
+    if not warnings.empty:
+        print("")
+        print("QC ile açıklanan beklenen eksiklikler:")
+        print(
+            warnings[
+                ["experiment", "column", "issue", "details"]
+            ].to_string(index=False)
+        )
+
     print("")
     print(f"ERROR sayısı: {len(errors)}")
 
