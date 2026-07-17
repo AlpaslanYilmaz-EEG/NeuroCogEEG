@@ -86,6 +86,20 @@ VARIABLE_FAMILIES = {
 }
 
 
+def get_variable_family(variable):
+    """Return the reporting family for a result variable."""
+    name = str(variable).strip()
+
+    if name.startswith("coh_"):
+        return "connectivity_coh"
+    if name.startswith("wpli_"):
+        return "connectivity_wpli"
+    if name.startswith("ciplv_"):
+        return "connectivity_ciplv"
+
+    return VARIABLE_FAMILIES.get(name, "unknown")
+
+
 TMT_REPORTABLE_EFFECTS = {
     "group_code",
     "tmt_variant_code",
@@ -192,10 +206,7 @@ def parse_group_statistics(experiment, dataframe):
                     {
                         "experiment": experiment,
                         "table_index": table_index,
-                        "analysis_family": VARIABLE_FAMILIES.get(
-                            current_variable,
-                            "unknown",
-                        ),
+                        "analysis_family": get_variable_family(current_variable),
                         "variable": current_variable,
                         "group": group,
                         "n": to_float(dataframe.iat[row_index, 2]),
@@ -238,10 +249,7 @@ def parse_independent_samples_tests(experiment, dataframe):
                     {
                         "experiment": experiment,
                         "table_index": table_index,
-                        "analysis_family": VARIABLE_FAMILIES.get(
-                            current_variable,
-                            "unknown",
-                        ),
+                        "analysis_family": get_variable_family(current_variable),
                         "variable": current_variable,
                         "assumption": assumption,
                         "levene_f": to_float(dataframe.iat[row_index, 2]),
@@ -306,10 +314,7 @@ def parse_tmt_mixed_fixed_effects(experiment, dataframe):
                 {
                     "experiment": experiment,
                     "table_index": table_index,
-                    "analysis_family": VARIABLE_FAMILIES.get(
-                        dependent_variable,
-                        "unknown",
-                    ),
+                    "analysis_family": get_variable_family(dependent_variable),
                     "variable": dependent_variable,
                     "effect": effect,
                     "numerator_df": to_float(dataframe.iat[source_row, 1]),
@@ -372,10 +377,7 @@ def parse_tmt_estimated_marginal_means(experiment, dataframe):
                 {
                     "experiment": experiment,
                     "table_index": table_index,
-                    "analysis_family": VARIABLE_FAMILIES.get(
-                        dependent_variable,
-                        "unknown",
-                    ),
+                    "analysis_family": get_variable_family(dependent_variable),
                     "variable": dependent_variable,
                     "group": data_row["group"],
                     "tmt_variant": data_row["tmt_variant"],

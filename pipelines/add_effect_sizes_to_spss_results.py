@@ -513,6 +513,101 @@ def compute_tmt_mixed_effect_sizes(fixed_effects: pd.DataFrame) -> pd.DataFrame:
     return result[ordered_columns]
 
 
+
+def _holm_adjust(p_values: np.ndarray) -> np.ndarray:
+    """Holm family-wise error adjustment."""
+    p = np.asarray(p_values, dtype=float)
+    m = len(p)
+    order = np.argsort(p)
+    ranked = p[order]
+    adjusted_ranked = np.empty(m, dtype=float)
+
+    running = 0.0
+    for i, value in enumerate(ranked):
+        adjusted = (m - i) * value
+        running = max(running, adjusted)
+        adjusted_ranked[i] = min(running, 1.0)
+
+    adjusted = np.empty(m, dtype=float)
+    adjusted[order] = adjusted_ranked
+    return adjusted
+
+
+def _fdr_bh_adjust(p_values: np.ndarray) -> np.ndarray:
+    """Benjamini-Hochberg false-discovery-rate adjustment."""
+    p = np.asarray(p_values, dtype=float)
+    m = len(p)
+    order = np.argsort(p)
+    ranked = p[order]
+    adjusted_ranked = np.empty(m, dtype=float)
+
+    running = 1.0
+    for i in range(m - 1, -1, -1):
+        rank = i + 1
+        adjusted = ranked[i] * m / rank
+        running = min(running, adjusted)
+        adjusted_ranked[i] = min(running, 1.0)
+
+    adjusted = np.empty(m, dtype=float)
+    adjusted[order] = adjusted_ranked
+    return adjusted
+
+
+def add_connectivity_multiple_comparison_corrections(
+    dataframe: pd.DataFrame,
+) -> pd.DataFrame:
+    """Add Holm and BH-FDR p values within each experiment's 27 connectivity tests."""
+    result = dataframe.copy()
+    result["connectivity_p_holm"] = np.nan
+    result["connectivity_p_fdr_bh"] = np.nan
+    result["connectivity_correction_family_size"] = pd.Series(
+        pd.NA, index=result.index, dtype="Int64"
+    )
+
+    experiment_col = find_column(
+        result,
+        ["experiment", "task", "deney"],
+        required=False,
+        context="connectivity corrections",
+    )
+    family_col = find_column(
+        result,
+        ["analysis_family"],
+        required=False,
+        context="connectivity corrections",
+    )
+    p_col = find_column(
+        result,
+        ["p_two_tailed", "p", "sig_2_tailed", "significance"],
+        required=False,
+        context="connectivity corrections",
+    )
+
+    if experiment_col is None or family_col is None or p_col is None:
+        return result
+
+    family_text = result[family_col].astype(str)
+    connectivity_mask = family_text.str.startswith("connectivity_")
+    connectivity = result.loc[connectivity_mask].copy()
+
+    for _, group in connectivity.groupby(experiment_col, dropna=False):
+        p_values = to_numeric(group[p_col])
+        valid = p_values.notna()
+
+        if not valid.any():
+            continue
+
+        valid_index = group.index[valid]
+        values = p_values.loc[valid].to_numpy(dtype=float)
+
+        result.loc[valid_index, "connectivity_p_holm"] = _holm_adjust(values)
+        result.loc[valid_index, "connectivity_p_fdr_bh"] = _fdr_bh_adjust(values)
+        result.loc[
+            valid_index, "connectivity_correction_family_size"
+        ] = len(values)
+
+    return result
+
 def build_manifest_row(output_name: str, dataframe: pd.DataFrame, status_col: str | None = None) -> dict[str, object]:
     row = {
         "output": output_name,
@@ -560,6 +655,11 @@ def main() -> None:
         independent_reporting_effect_sizes = merge_independent_reporting(
             independent_reporting,
             independent_effect_sizes,
+        )
+        independent_reporting_effect_sizes = (
+            add_connectivity_multiple_comparison_corrections(
+                independent_reporting_effect_sizes
+            )
         )
         independent_reporting_path = (
             OUTPUT_DIR / "independent_samples_tests_reporting_effect_sizes.csv"
